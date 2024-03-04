@@ -23,7 +23,7 @@ class GameInterface:
         returns
         """
         pass
-
-
     
 
+    def display_current_state(self) -> None:
+        pass
