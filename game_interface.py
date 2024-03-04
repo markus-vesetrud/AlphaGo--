@@ -1,26 +1,31 @@
+import numpy as np
+
 
 class GameInterface:
 
     # def __init__(self) -> None:
     #     pass
+    
 
     def is_final_state(self) -> int:
         """
-        returns: -1 for loss, 0 for not final state, and 1 for win
+        Only works for games that cannot be drawn
+
+        returns: -1 for player 2 win (not starting), 0 for not final state, and 1 for player 1 win (starting player)
         """
         pass
 
 
-    def get_legal_acions(self) -> list[bool]:
+    def get_legal_acions(self) -> np.ndarray:
         """
-        returns
+        returns a list of booleans, where each possible action is marked as legal or not
         """
         pass
 
 
-    def get_state(self) -> tuple[list[int], bool]:
+    def get_state(self) -> tuple[np.ndarray, bool]:
         """
-        returns
+        returns a representation of the game as an ndarray, and a boolean signifying whether it is the starting players turn
         """
         pass
     
