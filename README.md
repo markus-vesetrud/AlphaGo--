@@ -3,5 +3,8 @@
 
 ## TODO
 
-- [ ] Make board representation, update functions, and visualisation for both Hex and Nim (debug)
+- [x] Make an interface for game logic
+- [x] Make basic game Nim, using the interface, to be used for debugging purposes
+- [ ] Make board representation, update functions, and visualisation for Hex
 - [ ] Make a general MCTS system with rollouts
+- [ ] Make a neural network that may take game state as input and gives an action as output
