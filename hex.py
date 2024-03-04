@@ -128,21 +128,19 @@ class Hex(GameInterface):
 
 
 
-    def get_legal_acions(self) -> list[bool]:
-        """
-        returns
-        """
-        pass
+    def get_legal_acions(self) -> np.ndarray:
+        return (self.__board == np.zeros(shape=(1,1,2), dtype=np.bool_)).all(axis=2).flatten()
 
 
-    def get_state(self) -> tuple[list[int], bool]:
-        """
-        returns
-        """
+    def get_state(self) -> tuple[np.ndarray, bool]:
         pass
     
 
     def display_current_state(self) -> None:
+        pass
+
+
+    def perform_action(self, action: np.ndarray) -> None:
         pass
 
 
@@ -152,5 +150,7 @@ if __name__ == '__main__':
     print(hex.is_final_state())
 
 
+
+    
 
 
