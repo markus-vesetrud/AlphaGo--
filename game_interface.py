@@ -31,4 +31,15 @@ class GameInterface:
     
 
     def display_current_state(self) -> None:
+        """
+        displays the current state of the game
+        """
+        pass
+
+
+    def perform_action(self, action: np.ndarray) -> None:
+        """
+        performs the given action on the game state
+        action: an ndarray containing exactly one True, and the rest False
+        """
         pass
