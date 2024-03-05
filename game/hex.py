@@ -143,7 +143,7 @@ class Hex(GameInterface):
 
     def get_state(self, flatten: bool = False) -> np.ndarray | tuple[np.ndarray, bool]:
         if flatten:
-            return np.append(self.__board.flatten(), self.__current_black_player)
+            return np.append(self.__board.flatten(), self.__current_black_player, not self.__current_black_player)
         else:
             return (self.__board, self.__current_black_player)
     
