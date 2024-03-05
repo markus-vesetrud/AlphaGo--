@@ -8,3 +8,9 @@
 - [ ] Make board representation, update functions, and visualisation for Hex
 - [ ] Make a general MCTS system with rollouts
 - [ ] Make a neural network that may take game state as input and gives an action as output
+
+
+## Dependencies
+
+numpy, matplotlib
+

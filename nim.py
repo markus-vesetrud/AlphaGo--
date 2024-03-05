@@ -8,7 +8,7 @@ class Nim(GameInterface):
     range_of_pick = None
 
     def __init__(self, nbr_of_sticks: list[int], range_of_pick: int) -> None:
-        super().__init__()
+        # super().__init__()
 
         self.nbr_of_sticks = random.randint(nbr_of_sticks[0], nbr_of_sticks[1])
         self.next_player = random.choice([True, False])
@@ -43,7 +43,7 @@ class Nim(GameInterface):
 
 
 if __name__ == "__main__":
-    nim = Nim([1, 2], 4)
+    nim: GameInterface = Nim([1, 2], 4)
 
     while(nim.is_final_state() == 0):
         nim.display_current_state()
