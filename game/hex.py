@@ -1,4 +1,4 @@
-from game_interface import GameInterface
+from game.game_interface import GameInterface
 import numpy as np
 import matplotlib.pyplot as plt
 

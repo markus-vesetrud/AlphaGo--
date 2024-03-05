@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from game_interface import GameInterface
+from game.game_interface import GameInterface
 
 class Nim(GameInterface):
     nbr_of_sticks = None
