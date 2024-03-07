@@ -30,15 +30,28 @@ class Nim(GameInterface):
     def display_current_state(self) -> None:
         print("There are", self.nbr_of_sticks, "sticks left. It is player", 1 if self.next_player else 2, "'s turn.")
 
-    def perform_action(self, action: np.ndarray) -> None:
-        if not (np.sum(action) == 1 and np.sum(np.logical_not(action)) == self.range_of_pick - 1):
-            raise ValueError("The action must be a single True and the rest False.")
-        if np.nonzero(action)[0][0] > self.nbr_of_sticks - 1:
+    def perform_action(self, action: int) -> None:
+        # if not (np.sum(action) == 1 and np.sum(np.logical_not(action)) == self.range_of_pick - 1):
+        #     raise ValueError("The action must be a single True and the rest False.")
+        # if np.nonzero(action)[0][0] > self.nbr_of_sticks - 1:
+        #     raise ValueError("Cannot pick more sticks than there are left.")
+
+        # action = np.nonzero(action)[0][0] + 1
+        if action < 1 or action > self.range_of_pick:
+            raise ValueError(f"Must pick an action in range 1-{self.range_of_pick}")
+        if action > self.nbr_of_sticks - 1:
             raise ValueError("Cannot pick more sticks than there are left.")
 
-        action = np.nonzero(action)[0][0] + 1
+
         self.nbr_of_sticks -= action
         self.next_player = not self.next_player
+    
+    def get_action_count(self) -> int:
+        """
+        returns the max number of actions
+        """
+        return self.range_of_pick
+
 
 
 
@@ -48,6 +61,7 @@ if __name__ == "__main__":
     while(nim.is_final_state() == 0):
         nim.display_current_state()
         action = int(input("Choose a number of sticks to pick: "))
-        nim.perform_action(np.array([i == action for i in range(1, nim.range_of_pick + 1)]))
+        # nim.perform_action(np.array([i == action for i in range(1, nim.range_of_pick + 1)]))
+        nim.perform_action(action)
 
     print("Player", 1 if nim.is_final_state() == 1 else 2, "wins!")
