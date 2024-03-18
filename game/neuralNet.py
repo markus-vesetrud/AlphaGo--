@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
+import torch.nn.functional as F
 
-class NeuralNet(torch.nn.Module):
+class LinearNeuralNet(torch.nn.Module):
     def __init__(self, input_size: int, hidden_size: int, output_size: int):
-        super(NeuralNet, self).__init__()
+        super(LinearNeuralNet, self).__init__()
         self.l1 = torch.nn.Linear(input_size, hidden_size)
         self.relu = torch.nn.ReLU()
         self.l2 = torch.nn.Linear(hidden_size, output_size)
@@ -16,6 +17,76 @@ class NeuralNet(torch.nn.Module):
         out = self.l2(out)
         return out
     
+class ConvolutionalNeuralNet(nn.Module):
+    def __init__(self, board_size):
+        super(ConvolutionalNeuralNet, self).__init__()
+        self.board_size = board_size
+    
+        # Convolutional layers
+        self.conv1 = nn.Conv2d(2, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+
+        # Fully connected layer
+        self.fc = nn.Linear(128 * board_size * board_size, board_size * board_size)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+
+        # Flatten the tensor
+        x = x.view(-1, 128 * self.board_size * self.board_size)
+
+        # Fully connected layer
+        x = self.fc(x)
+
+        # Apply softmax to get probabilities
+        x = F.softmax(x, dim=1)
+
+        return x
+    
+class DeepConvolutionalNeuralNet(nn.Module):
+    def __init__(self, board_size):
+        super(DeepConvolutionalNeuralNet, self).__init__()
+        self.board_size = board_size
+        
+        # Convolutional layers
+        self.conv1 = nn.Conv2d(2, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
+        self.conv4 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
+
+        # Batch normalization layers
+        self.bn1 = nn.BatchNorm2d(64)
+        self.bn2 = nn.BatchNorm2d(128)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.bn4 = nn.BatchNorm2d(128)
+
+        # Fully connected layer
+        self.fc = nn.Linear(128 * board_size * board_size, board_size * board_size)
+        # may be necessary to add more FC layers, testing will show
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+
+        # Flatten the tensor
+        x = x.view(-1, 128 * self.board_size * self.board_size)
+
+        # Fully connected layer
+        x = self.fc(x)
+
+        # Apply softmax to get probabilities
+        x = F.softmax(x, dim=1)
+
+        return x
+
+# --------------------------------
+    
+# Example of usage
+
+""" 
 # Hyperparameters
 input_size = 28*28
 hidden_size = 500
@@ -46,7 +117,7 @@ test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
                                             shuffle=False)
 
 # Model
-model = NeuralNet(input_size, hidden_size, output_size).to(device)
+model = LinearNeuralNet(input_size, hidden_size, output_size).to(device)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
@@ -88,4 +159,4 @@ with torch.no_grad():
     print('Accuracy of the network on the 10000 test images: {} %'.format(100 * correct / total))
 
 # Save the model checkpoint
-torch.save(model.state_dict(), 'model.ckpt')
+torch.save(model.state_dict(), 'model.ckpt') """
