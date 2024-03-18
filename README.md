@@ -13,5 +13,5 @@
 
 ## Dependencies
 
-numpy, matplotlib
+numpy, matplotlib, pytorch
 
