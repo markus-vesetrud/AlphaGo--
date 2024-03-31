@@ -1,6 +1,11 @@
-from game.game_interface import GameInterface
 import numpy as np
 import matplotlib.pyplot as plt
+
+try:
+    from game.game_interface import GameInterface
+except ModuleNotFoundError:
+    from game_interface import GameInterface
+
 
 class Hex(GameInterface):
 
@@ -114,11 +119,15 @@ class Hex(GameInterface):
         return False
 
 
-    def is_final_state(self) -> int:
+    def is_final_state(self) -> bool:
         """
-        Only works for games that cannot be drawn
+        returns true if the game is in a final state
+        """
+        return self.get_final_state_reward() != 0
 
-        returns: -1 for red player win (not starting), 0 for not final state, and 1 for black player win (starting player)
+    def get_final_state_reward(self) -> int:
+        """
+        returns: -1 for player 2 win (not starting), 0 for not final state, and 1 for player 1 win (starting player)
         """
 
         # Board can be in a winning position without being filled
@@ -154,6 +163,13 @@ class Hex(GameInterface):
         else:
             return (self.__board, self.__current_black_player)
     
+    
+    def is_starting_player_turn(self) -> bool:
+        """
+        returns a boolean signifying whether it is the starting players turn
+        """
+        return self.__current_black_player
+
 
     def perform_action(self, action: int | tuple[int], flattend_input: bool = True) -> None:
         if flattend_input:
@@ -275,12 +291,14 @@ if __name__ == '__main__':
     hex.perform_action((4,4), flattend_input=False)
     hex.perform_action((1,3), flattend_input=False)
 
+    print(hex.get_final_state_reward())
     print(hex.is_final_state())
 
     hex.perform_action((2,4), flattend_input=False)
     hex.perform_action((1,4), flattend_input=False)
 
 
+    print(hex.get_final_state_reward())
     print(hex.is_final_state())
     print(hex.get_legal_acions())
     hex.display_current_state()

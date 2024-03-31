@@ -3,11 +3,16 @@ import numpy as np
 
 class GameInterface:
 
-    def is_final_state(self) -> int:
+    def get_final_state_reward(self) -> int:
         """
-        Only works for games that cannot be drawn
-
         returns: -1 for player 2 win (not starting), 0 for not final state, and 1 for player 1 win (starting player)
+        """
+        pass
+
+
+    def is_final_state(self) -> bool:
+        """
+        returns true if the game is in a final state
         """
         pass
 
@@ -26,6 +31,13 @@ class GameInterface:
         """
         pass
     
+
+    def is_starting_player_turn(self) -> bool:
+        """
+        returns a boolean signifying whether it is the starting players turn
+        """
+        pass
+
 
     def perform_action(self, action: int | tuple[int], flattend_input: bool = True) -> None:
         """
