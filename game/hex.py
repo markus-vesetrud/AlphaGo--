@@ -1,11 +1,16 @@
-from game.game_interface import GameInterface
 import numpy as np
 import matplotlib.pyplot as plt
+
+try:
+    from game.game_interface import GameInterface
+except ModuleNotFoundError:
+    from game_interface import GameInterface
+
 
 class Hex(GameInterface):
 
 
-    def __init__(self, board_size: int, current_black_player = True) -> None:
+    def __init__(self, board_size: int, board: np.ndarray = None, current_black_player = True) -> None:
         # Must allow 3-10 range
         self.__board_size = board_size
 
@@ -26,8 +31,26 @@ class Hex(GameInterface):
         # The board is also connected horizontally, which in this representation 
         # means board[i,j,:] is connected to board[i-1,j+1,:] and board[i-1,j+1,:]
         # (In addition to its 4 neighbours)
-        self.__board = np.zeros((board_size, board_size, 2), dtype=np.bool_)
-        
+        if board is None:
+            self.__board = np.zeros((board_size, board_size, 2), dtype=np.bool_)
+        else:
+            self.__board = board
+
+    
+    def print_board(self):
+        text = ' '
+        for i in range(self.__board_size):
+            for j in range(self.__board_size):
+                if np.equal(self.__board[i,j,:], self.__black_player_piece).all():
+                    text += 'x '
+                elif np.equal(self.__board[i,j,:], self.__red_player_piece).all():
+                    text += 'o '
+                else:
+                    text += '. '
+            text += '\n '
+        print(text)
+        return text
+
     
     def __get_neighbours(self, id: tuple[int, int]) -> list[tuple[int, int]]:
         max_index = self.__board_size - 1
@@ -88,9 +111,17 @@ class Hex(GameInterface):
         while len(queue) > 0:
             # Remove the last element of the queue and mark it as visited
             current_id = queue.pop()
+
+            # Check that the current_id is actually filled by the correct player
+            # If not just go to the next element
+            if not np.equal(self.__board[current_id[0],current_id[1],:], filled_check).all():
+                continue
+
+
             visited[current_id] = True
 
             neighbours = self.__get_neighbours(current_id)
+
 
             for neighbour in neighbours:
                 # If the neighbor is not filled by the player currently being checked, then do not consider it
@@ -112,11 +143,17 @@ class Hex(GameInterface):
         return False
 
 
-    def is_final_state(self) -> int:
+    def is_final_state(self) -> bool:
         """
-        Only works for games that cannot be drawn
+        returns true if the game is in a final state
+        """
+        return self.__player_win(black_player=True) or self.__player_win(black_player=False)
 
-        returns: -1 for red player win (not starting), 0 for not final state, and 1 for black player win (starting player)
+    def get_final_state_reward(self) -> int:
+        """
+        raises an AssertionError if not a final state
+
+        returns 0 for player 2 win (not starting), and 1 for player 1 win (starting player)
         """
 
         # Board can be in a winning position without being filled
@@ -125,38 +162,53 @@ class Hex(GameInterface):
         
         if self.__player_win(black_player=False):
             # Player 2 won
-            return -1
+            return 0
 
         # Since no player won, the board must not be filled yet
         # No need to check it        
-        return 0
+        raise AssertionError("Not a final state")
 
 
 
-    def get_legal_acions(self, flatten: bool = False) -> np.ndarray:
-        result = (self.__board == np.zeros(shape=(1,1,2), dtype=np.bool_)).all(axis=2)
+    def get_legal_acions(self, flatten: bool = True) -> np.ndarray:
+        empty_x_indices, empty_y_indices = np.where((self.__board == np.zeros(shape=(1,1,2), dtype=np.bool_)).all(axis=2))
+        result = []
         if flatten:
-            return result.flatten()
+            for i in range(empty_x_indices.shape[0]):
+                result.append(empty_x_indices[i]*self.__board_size + empty_y_indices[i])
+            return result
         else:
+            for i in range(empty_x_indices.shape[0]):
+                result.append((empty_x_indices[i], empty_y_indices[i]))
             return result 
 
 
-    def get_state(self, flatten: bool = False) -> np.ndarray | tuple[np.ndarray, bool]:
+    def get_state(self, flatten: bool = True) -> np.ndarray | tuple[np.ndarray, bool]:
         if flatten:
             return np.append(self.__board.flatten(), self.__current_black_player, not self.__current_black_player)
         else:
             return (self.__board, self.__current_black_player)
     
 
-    def perform_action(self, action: np.ndarray, flattend_input: bool = False) -> None:
+    def is_starting_player_turn(self) -> bool:
+        """
+        returns a boolean signifying whether it is the starting players turn
+        """
+        return self.__current_black_player
+
+
+    def perform_action(self, action: int | tuple[int], flattend_input: bool = True) -> None:
         if flattend_input:
-            action = action.reshape((self.__board_size, self.__board_size))
+            # The following definition means we first loop over all columns in a row, and then start again at the next row
+            x, y = (action // self.__board_size, action % self.__board_size)
+        else:
+            x, y = action
             
         # Extract the locationfirst true element
-        id = np.where(action == True)
-        if id[0].shape[0] != 1:
-            raise ValueError('Given action contains more than one element')
-        x, y = id[0][0], id[1][0]
+        # id = np.where(action == True)
+        # if id[0].shape[0] != 1:
+        #     raise ValueError('Given action contains more than one element')
+        # x, y = id[0][0], id[1][0]
 
         if not np.equal(self.__board[x, y, :], self.__empty_piece).all():
             raise ValueError('Trying to place a piece on a non empty location')
@@ -168,6 +220,12 @@ class Hex(GameInterface):
             self.__board[x, y, :] = self.__red_player_piece
 
         self.__current_black_player = not self.__current_black_player
+
+    def get_action_count(self) -> int:
+        """
+        returns the max number of actions
+        """
+        return self.__board_size**2
 
 
     def display_current_state(self) -> None:
@@ -249,28 +307,47 @@ class Hex(GameInterface):
 
 
 if __name__ == '__main__':
-    hex: GameInterface = Hex(5)
-
-    def create_action(x: int, y: int, size: int) -> np.ndarray:
-        action = np.zeros(shape=(size, size), dtype=np.bool_)
-        action[x,y] = True
-        return action
-
+    # hex: GameInterface = Hex(5)
     
-    hex.perform_action(create_action(1,2,5))
-    hex.perform_action(create_action(3,2,5))
-    hex.perform_action(create_action(1,0,5))
-    hex.perform_action(create_action(3,3,5))
-    hex.perform_action(create_action(1,1,5))
-    hex.perform_action(create_action(4,4,5))
-    hex.perform_action(create_action(1,3,5))
+    # hex.perform_action((1,2), flattend_input=False)
+    # hex.perform_action((3,2), flattend_input=False)
+    # hex.perform_action(10)
+    # hex.perform_action((3,3), flattend_input=False)
+    # hex.perform_action((1,1), flattend_input=False)
+    # hex.perform_action((4,4), flattend_input=False)
+    # hex.perform_action((1,3), flattend_input=False)
 
-    print(hex.is_final_state())
+    # print(hex.get_final_state_reward())
+    # print(hex.is_final_state())
 
-    hex.perform_action(create_action(2,4,5))
-    hex.perform_action(create_action(1,4,5))
+    # hex.perform_action((2,4), flattend_input=False)
+    # hex.perform_action((1,4), flattend_input=False)
 
 
-    print(hex.is_final_state())
+    # print(hex.get_final_state_reward())
+    # print(hex.is_final_state())
+    # print(hex.get_legal_acions())
+    # hex.display_current_state()
 
+    hex: GameInterface = Hex(3)
+    
+    # hex.perform_action((2,2), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((0,0), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((1,1), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((0,1), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((1,0), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((1,2), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((2,1), flattend_input=False)
+    # print(hex.is_final_state())
+
+    # print(hex.get_final_state_reward())
+
+
+    hex.perform_action(7)
     hex.display_current_state()

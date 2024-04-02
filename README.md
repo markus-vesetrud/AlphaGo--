@@ -8,8 +8,10 @@
 - [x] Make board representation, update functions, and visualisation for Hex
 - [ ] Test Hex till we are happy
 - [ ] Make a general MCTS system with rollouts
-- [x] Make a neural network that may take game state as input and gives an action as output
 
+- [x] Make a neural network that may take game state as input and gives an action as output
+- [ ] Rotate board 180 degrees with probability 50% when training the network
+- [ ] Test adam optimizer with 128 batch size
 
 ## Dependencies
 
