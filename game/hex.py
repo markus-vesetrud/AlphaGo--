@@ -35,6 +35,22 @@ class Hex(GameInterface):
             self.__board = np.zeros((board_size, board_size, 2), dtype=np.bool_)
         else:
             self.__board = board
+
+    
+    def print_board(self):
+        text = ' '
+        for i in range(self.__board_size):
+            for j in range(self.__board_size):
+                if np.equal(self.__board[i,j,:], self.__black_player_piece).all():
+                    text += 'x '
+                elif np.equal(self.__board[i,j,:], self.__red_player_piece).all():
+                    text += 'o '
+                else:
+                    text += '. '
+            text += '\n '
+        print(text)
+        return text
+
     
     def __get_neighbours(self, id: tuple[int, int]) -> list[tuple[int, int]]:
         max_index = self.__board_size - 1
@@ -95,9 +111,17 @@ class Hex(GameInterface):
         while len(queue) > 0:
             # Remove the last element of the queue and mark it as visited
             current_id = queue.pop()
+
+            # Check that the current_id is actually filled by the correct player
+            # If not just go to the next element
+            if not np.equal(self.__board[current_id[0],current_id[1],:], filled_check).all():
+                continue
+
+
             visited[current_id] = True
 
             neighbours = self.__get_neighbours(current_id)
+
 
             for neighbour in neighbours:
                 # If the neighbor is not filled by the player currently being checked, then do not consider it
@@ -123,11 +147,13 @@ class Hex(GameInterface):
         """
         returns true if the game is in a final state
         """
-        return self.get_final_state_reward() != 0
+        return self.__player_win(black_player=True) or self.__player_win(black_player=False)
 
     def get_final_state_reward(self) -> int:
         """
-        returns: -1 for player 2 win (not starting), 0 for not final state, and 1 for player 1 win (starting player)
+        raises an AssertionError if not a final state
+
+        returns 0 for player 2 win (not starting), and 1 for player 1 win (starting player)
         """
 
         # Board can be in a winning position without being filled
@@ -136,11 +162,11 @@ class Hex(GameInterface):
         
         if self.__player_win(black_player=False):
             # Player 2 won
-            return -1
+            return 0
 
         # Since no player won, the board must not be filled yet
         # No need to check it        
-        return 0
+        raise AssertionError("Not a final state")
 
 
 
@@ -163,7 +189,7 @@ class Hex(GameInterface):
         else:
             return (self.__board, self.__current_black_player)
     
-    
+
     def is_starting_player_turn(self) -> bool:
         """
         returns a boolean signifying whether it is the starting players turn
@@ -281,24 +307,47 @@ class Hex(GameInterface):
 
 
 if __name__ == '__main__':
-    hex: GameInterface = Hex(5)
+    # hex: GameInterface = Hex(5)
     
-    hex.perform_action((1,2), flattend_input=False)
-    hex.perform_action((3,2), flattend_input=False)
-    hex.perform_action(10)
-    hex.perform_action((3,3), flattend_input=False)
-    hex.perform_action((1,1), flattend_input=False)
-    hex.perform_action((4,4), flattend_input=False)
-    hex.perform_action((1,3), flattend_input=False)
+    # hex.perform_action((1,2), flattend_input=False)
+    # hex.perform_action((3,2), flattend_input=False)
+    # hex.perform_action(10)
+    # hex.perform_action((3,3), flattend_input=False)
+    # hex.perform_action((1,1), flattend_input=False)
+    # hex.perform_action((4,4), flattend_input=False)
+    # hex.perform_action((1,3), flattend_input=False)
 
-    print(hex.get_final_state_reward())
-    print(hex.is_final_state())
+    # print(hex.get_final_state_reward())
+    # print(hex.is_final_state())
 
-    hex.perform_action((2,4), flattend_input=False)
-    hex.perform_action((1,4), flattend_input=False)
+    # hex.perform_action((2,4), flattend_input=False)
+    # hex.perform_action((1,4), flattend_input=False)
 
 
-    print(hex.get_final_state_reward())
-    print(hex.is_final_state())
-    print(hex.get_legal_acions())
+    # print(hex.get_final_state_reward())
+    # print(hex.is_final_state())
+    # print(hex.get_legal_acions())
+    # hex.display_current_state()
+
+    hex: GameInterface = Hex(3)
+    
+    # hex.perform_action((2,2), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((0,0), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((1,1), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((0,1), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((1,0), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((1,2), flattend_input=False)
+    # print(hex.is_final_state())
+    # hex.perform_action((2,1), flattend_input=False)
+    # print(hex.is_final_state())
+
+    # print(hex.get_final_state_reward())
+
+
+    hex.perform_action(7)
     hex.display_current_state()

@@ -5,7 +5,9 @@ class GameInterface:
 
     def get_final_state_reward(self) -> int:
         """
-        returns: -1 for player 2 win (not starting), 0 for not final state, and 1 for player 1 win (starting player)
+        raises an AssertionError if not a final state
+
+        returns 0 for player 2 win (not starting), and 1 for player 1 win (starting player)
         """
         pass
 

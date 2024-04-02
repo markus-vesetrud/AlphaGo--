@@ -17,14 +17,15 @@ class Nim(GameInterface):
 
     def get_final_state_reward(self, flatten: bool = True) -> int:
         """
-        returns: -1 for player 2 win (not starting), 0 for not final state, and 1 for player 1 win (starting player)
+        raises an AssertionError if not a final state
+
+        returns 0 for player 2 win (not starting), and 1 for player 1 win (starting player)
         """
         if self.is_final_state():
             # Opposite of what you would expect since player_1_turn has flipped after the match was decided
-            return_value = -1 if self.player_1_turn else 1
+            return 0 if self.player_1_turn else 1
         else:
-            return_value = 0
-        return return_value
+            raise AssertionError("Not a final state")
 
     def is_final_state(self) -> bool:
         """
