@@ -17,6 +17,9 @@ board_size = 5
 exploration_weight = 1.0
 search_iterations = 50
 
+game_states: list[np.ndarray] = []
+target_values: list[np.ndarray] = []
+
 input_size = 28*28
 hidden_size = 500
 output_size = 10
@@ -32,7 +35,8 @@ num_epochs = 5
 game: GameInterface = Hex(board_size)
 board, black_to_play = game.get_state(False)
 
-game_states: list[GameInterface] = [deepcopy(game)]
+# game_states: list[GameInterface] = [deepcopy(game)]
+
 root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_acions(True), game.get_action_count())
 
 # print(board)
@@ -41,7 +45,6 @@ input_board = board.copy()
 while not game.is_final_state():
     
     mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
-
 
     mcts.UCTSearch(search_iterations)
     best_action = mcts.root.best_action()
@@ -52,21 +55,45 @@ while not game.is_final_state():
     # else:
     #     best_action = int(input("Action: "))
     
-    with np.printoptions(precision=2, suppress=True):
-        print('best', best_action)     
-        print('total node searches:', mcts.root.total_visit_count)     
-        print(root_node.action_values)
+    # with np.printoptions(precision=2, suppress=True):
+    #     print('best', best_action)     
+    #     print('total node searches:', mcts.root.total_visit_count)     
+    #     print(root_node.action_values)
 
-    train_instance1 = root_node.action_values
+    # train_instance1 = root_node.action_values
+
+    current_game_state, current_black_to_play = game.get_state(False)
+    if(current_black_to_play):
+        game_states.append(deepcopy(current_game_state))
+        target_values.append(root_node.action_values)     
     
     root_node = mcts.root.get_child(best_action)
     root_node.make_root()
 
     game.perform_action(best_action)
-    game_states.append(deepcopy(game))
+    # game_states.append(deepcopy(game))
     # game.display_current_state()
 
-    break
+    # break
+
+print("len board: ", len(game_states))
+print("len target: ", len(target_values))
+
+# exit()
+
+""" print(board)
+inverted_board = game.get_inverted_state(False)[0]
+rotated_board = game.get_rotated_state(False)[0]
+fully_rotated_board = game.get_fully_rotated_state(False)[0]
+
+game2: GameInterface = Hex(board_size, inverted_board, False)
+game3: GameInterface = Hex(board_size, rotated_board, False)
+game4: GameInterface = Hex(board_size, fully_rotated_board, False)
+
+game.display_current_state()
+game2.display_current_state()
+game3.display_current_state()
+game4.display_current_state() """
 
 # stop the file from running
 # exit()
@@ -106,26 +133,22 @@ for epoch in range(num_epochs):
                    .format(epoch+1, num_epochs, i+1, total_step, loss.item())) """
 
 
+for i in range(len(game_states)):
+    tensor_input_board = torch.tensor(game_states[i], dtype=torch.float32).to(device)
+    input_board = tensor_input_board.permute(2, 0, 1).unsqueeze(0).to(device)
 
-# train on one instance
-tensor_input_board = torch.tensor(input_board, dtype=torch.float32) # where board is the return of get_state
-input_board = tensor_input_board.permute(2, 0, 1).unsqueeze(0)
-outputs = model(input_board.to(device))
+    tensor_target_value = torch.tensor(target_values[i], dtype=torch.float32).to(device)
 
-print("outputs before: ")
-print(outputs)
-
-for _ in range(10000):
-    outputs = model(input_board.to(device))
-    loss = criterion(outputs[0], torch.tensor(train_instance1, dtype=torch.float32).to(device))
+    outputs = model(input_board).to(device)
+    loss = criterion(outputs[0], tensor_target_value).to(device)
 
     # Backward and optimize
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
-print("outputs after: ")
-print(model(input_board.to(device)))
+# print("outputs after: ")
+# print(model(input_board.to(device)))
 
 
 # Test the model
