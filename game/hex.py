@@ -298,10 +298,11 @@ class Hex(GameInterface):
         plt.scatter(red_player_locations[:,0], red_player_locations[:,1], s=100, facecolors='red', zorder=10)
 
         # Some helpful text
-        plt.text(-2.9, -1, "Black start", color='black')
-        plt.text(1.5, -1, "Red start", color='red')
-        plt.text(1.5, -5, "Black end", color='black')
-        plt.text(-2.7, -5, "Red end", color='red')
+        centre_edge_dist = np.sqrt(2)*(self.__board_size - 1)/2
+        plt.text(-centre_edge_dist-(0.2*centre_edge_dist), -centre_edge_dist/2, "Black start", color='black')
+        plt.text(centre_edge_dist-(0.2*centre_edge_dist), -centre_edge_dist/2, "Red start", color='red')
+        plt.text(centre_edge_dist-(0.2*centre_edge_dist), -centre_edge_dist*3/2, "Black end", color='black')
+        plt.text(-centre_edge_dist-(0.2*centre_edge_dist), -centre_edge_dist*3/2, "Red end", color='red')
 
         # Make it nice
         plt.gca().set_aspect(1.25)
