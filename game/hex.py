@@ -107,15 +107,19 @@ class Hex(GameInterface):
             filled_check = self.__red_player_piece
 
 
+        i = len(queue) - 1
+        while i >= 0:
+            current_id = queue.pop(i)
+            # Check that the current_id is actually filled by the correct player
+            # If it is the id is added back to the queue
+            if np.equal(self.__board[current_id[0],current_id[1],:], filled_check).all():
+                queue.append(current_id)
+
+            i -= 1
 
         while len(queue) > 0:
             # Remove the last element of the queue and mark it as visited
             current_id = queue.pop()
-
-            # Check that the current_id is actually filled by the correct player
-            # If not just go to the next element
-            if not np.equal(self.__board[current_id[0],current_id[1],:], filled_check).all():
-                continue
 
 
             visited[current_id] = True
