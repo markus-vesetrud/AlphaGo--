@@ -10,7 +10,8 @@
 - [ ] Make a general MCTS system with rollouts
 
 - [x] Make a neural network that may take game state as input and gives an action as output
-- [ ] Rotate board 180 degrees with probability 50% when training the network
+- [x] Rotate board 180 degrees for doubling training instances from data
+- [x] Invert board on red's turns to maximize training data
 - [ ] Test adam optimizer with 128 batch size
 
 ## Dependencies
