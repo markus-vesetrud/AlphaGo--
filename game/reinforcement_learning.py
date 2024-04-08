@@ -59,11 +59,11 @@ for _ in range(num_games):
     mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
 
     mcts.UCTSearch(search_iterations)
-    best_action = mcts.root.best_action()
+    best_action = mcts.root.best_action() # root_node.best_action() # mcts.root.best_action()
 
     current_game_state, current_black_to_play = game.get_state(False)
     if(current_black_to_play): # should always be opening move by black
-        current_target_values = root_node.action_values / np.sum(root_node.action_values)
+        current_target_values = mcts.root.action_values / np.sum(mcts.root.action_values) # root_node.action_values / np.sum(root_node.action_values)
 
         # adding original board
         game_states.append(deepcopy(current_game_state))
@@ -80,9 +80,9 @@ for _ in range(num_games):
         mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
 
         mcts.UCTSearch(search_iterations)
-        best_action = root_node.best_action() # mcts.root.best_action()
+        best_action = mcts.root.best_action() # root_node.best_action() # mcts.root.best_action()
 
-        node_action_values = root_node.action_values
+        node_action_values = mcts.root.action_values # root_node.action_values
 
         current_game_state, current_black_to_play = game.get_state(False)
         if(current_black_to_play):
@@ -98,7 +98,7 @@ for _ in range(num_games):
             target_values.append(fully_rotated_current_target_values)
 
         else:
-            mask = np.isin(np.arange(board_size**2), root_node.legal_actions) # mcts.root.legal_actions) # replace with root_node ? 
+            mask = np.isin(np.arange(board_size**2), mcts.root.legal_actions) # root_node.legal_actions) # mcts.root.legal_actions) # replace with root_node ? 
             current_target_values = (flip_target_values - node_action_values) * mask
             current_target_values = current_target_values / np.sum(current_target_values)
 
