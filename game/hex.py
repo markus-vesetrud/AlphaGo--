@@ -189,24 +189,6 @@ class Hex(GameInterface):
         else:
             return (self.__board, self.__current_black_player)
         
-
-    def get_inverted_state(self, flatten: bool = True) -> np.ndarray | tuple[np.ndarray, bool]:
-        # __board is of size (self.__board_size, self.__board_size, 2)
-        # The inversion is done by flipping the board along the axis 0
-
-        if flatten:
-            return np.append(np.flip(self.__board, axis=0).flatten(), self.__current_black_player, not self.__current_black_player)
-        else:
-            return (np.flip(self.__board, axis=0), self.__current_black_player)
-        
-    def get_rotated_state(self, flatten: bool = True) -> np.ndarray | tuple[np.ndarray, bool]:
-        # __board is of size (self.__board_size, self.__board_size, 2)
-        # The rotation is done by rotating the board 90 degrees clockwise
-
-        if flatten:
-            return np.append(np.rot90(self.__board, k=3).flatten(), self.__current_black_player, not self.__current_black_player)
-        else:
-            return (np.rot90(self.__board, k=3), self.__current_black_player)
         
     def get_fully_rotated_state(self, flatten: bool = True) -> np.ndarray | tuple[np.ndarray, bool]:
         # __board is of size (self.__board_size, self.__board_size, 2)
