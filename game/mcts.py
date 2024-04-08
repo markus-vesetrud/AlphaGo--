@@ -1,7 +1,12 @@
 import numpy as np
-from game.game_interface import GameInterface
-from game.hex import Hex
-from game.nim import Nim
+try:
+    from game.game_interface import GameInterface
+    from game.hex import Hex
+    from game.nim import Nim
+except ModuleNotFoundError:
+    from game_interface import GameInterface
+    from hex import Hex
+    from nim import Nim
 from copy import deepcopy
 import random
 
@@ -169,7 +174,7 @@ class MCTreeSearch:
     def simulate(self):
         self.game = deepcopy(self.starting_game)
 
-        leaf_node = self.sim_tree(root_node)
+        leaf_node = self.sim_tree(self.root) #root_node)
 
         game_result = self.sim_default()
 
