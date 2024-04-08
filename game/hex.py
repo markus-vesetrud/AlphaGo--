@@ -192,6 +192,16 @@ class Hex(GameInterface):
             return np.append(self.__board.flatten(), self.__current_black_player, not self.__current_black_player)
         else:
             return (self.__board, self.__current_black_player)
+        
+        
+    def get_fully_rotated_state(self, flatten: bool = True) -> np.ndarray | tuple[np.ndarray, bool]:
+        # __board is of size (self.__board_size, self.__board_size, 2)
+        # The rotation is done by rotating the board 180 degrees clockwise
+
+        if flatten:
+            return np.append(np.rot90(self.__board, k=2).flatten(), self.__current_black_player, not self.__current_black_player)
+        else:
+            return (np.rot90(self.__board, k=2), self.__current_black_player)
     
 
     def is_starting_player_turn(self) -> bool:
