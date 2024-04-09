@@ -13,6 +13,9 @@
 - [x] Rotate board 180 degrees for doubling training instances from data
 - [x] Invert board on red's turns to maximize training data
 - [ ] Test adam optimizer with 128 batch size
+- [ ] Maybe apply softmax to mcts output
+- [ ] Use the network in MCTS
+- [ ] Split up the creation of data and training on it for debugging purposes
 
 ## Dependencies
 
