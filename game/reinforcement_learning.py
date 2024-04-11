@@ -1,165 +1,265 @@
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
-
+from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
+from copy import deepcopy
+import matplotlib.pyplot as plt
+
 from game_interface import GameInterface
 from hex import Hex
-from copy import deepcopy
 from mcts import MCTreeSearch, MCTreeNode
-from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet
+from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet
 
 
-# Hyperparameters
-board_size = 5
-
-exploration_weight = 1.0
-search_iterations = 50
-
-game_states: list[np.ndarray] = []
-target_values: list[np.ndarray] = []
-
-flip_target_values = np.ones(board_size*board_size)
-
-input_size = 28*28
-hidden_size = 500
-output_size = 10
-learning_rate = 0.001
-batch_size = 100
-num_epochs = 5
-num_games = 5
-
-# Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# Model
-# model = LinearNeuralNet(input_size, hidden_size, output_size).to(device) # not made for hex
-# model = ConvolutionalNeuralNet(board_size).to(device)
-model = DeepConvolutionalNeuralNet(board_size).to(device)
-
-# Loss and optimizer
-criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+def softmax(x: np.ndarray):
+    # Subtracting the max value for numerical stability, it does not influence the answer
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
 
-# ------------------- Game -------------------
-# this part runs num_games games and collects the game states and target values (probabilities of actions)
-# the opening move is only saved in one configuration, the rest of the game is saved in two configurations (original and 180 degree rotated)
-# both moves are saved in the perspective of the player to move (black and red)
+def create_cases(board_size, game_board, black_to_play, node_action_values, legal_actions) -> tuple[list[np.ndarray]]:
+    """
+    Takes in a board, which players turn it is, and information about the best move
 
-for _ in range(num_games):
-    # game: GameInterface = Nim([10,10], 4)
+    Returns a list of 2 game states and 2 target values, if it is red's turn, the player perspective is flipped
+    The 2 game states and target values returned are 180 degree rotations about each other
+    """
+    game_states = []
+    target_values = []
+    node_action_values = np.array(node_action_values, dtype=np.float32)
+
+    # The mask is a 1D array of booleans signifying whether the action is a legal action
+    legal_mask = np.isin(np.arange(board_size**2), legal_actions)
+    # The inf mask is 0 of the action is legal and -inf if not
+    legal_inf_mask = np.array([(0.0 if legal else -np.inf) for legal in legal_mask], dtype=np.float32)
+
+
+    if(black_to_play):
+        
+        current_target_values = softmax(node_action_values + legal_inf_mask)
+        # adding original board
+        game_states.append(deepcopy(game_board))
+        target_values.append(current_target_values)
+
+        # adding 180 degree rotated board
+        game_states.append(deepcopy(np.rot90(game_board, k=2)))
+        fully_rotated_current_target_values = np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten()
+        target_values.append(fully_rotated_current_target_values)
+
+    else:
+        # Flip the board from player2's perspective back to player1's perspective
+
+        # node_action_values is between 0 and 1, taking 1 minus that value flips it
+        current_target_values = (np.ones(board_size*board_size) - node_action_values)
+
+        # In previous implementation:
+        # Sometimes np.sum(current_target_values) == 0
+        # This happens if the search is 100% confident black will win no matter what.
+        # In this case the node_action_values are 1.0 (exactly) for legal actions and 0.0 for illegal actions
+        # That would result in current_target_values all being 0.0 and equally bad
+
+        current_target_values = softmax(current_target_values + legal_inf_mask)
+
+
+        # create 2 2D copies of the 
+        current_target_values_copy = current_target_values.reshape((board_size, board_size)).copy()
+        current_target_values_copy2 = current_target_values_copy.copy()
+        
+        # flipping the board to red's perspective
+        board_np = np.array(game_board)
+        empty_mask = np.all(board_np == [False, False], axis=-1)
+        board_np = np.logical_not(board_np)
+        board_np[empty_mask] = [False, False]
+
+        board_copy = board_np.copy()
+        
+        for i in range(board_size):
+            for j in range(board_size):
+                board_np[board_size - j - 1][board_size - i - 1] = board_copy[i][j]
+                current_target_values_copy[board_size - j - 1][board_size - i - 1] = current_target_values_copy2[i][j]
+        
+        current_target_values = current_target_values_copy.flatten()
+
+        # adding "original" board
+        game_states.append(deepcopy(board_np))
+        target_values.append(current_target_values)
+
+        # adding 180 degree rotated board
+        game_states.append(deepcopy(np.rot90(board_np, k=2)))
+        target_values.append(np.rot90(current_target_values_copy, k=2).flatten())
+    
+    return game_states, target_values
+
+
+def simulate_game(board_size: int, exploration_weight: float, search_iterations: int) -> None:
+    """
+    Simulates a game and collects the game states and target values (probabilities of actions)
+    in the global variables game_states and target_values
+
+    All moves are saved in two configurations (original and 180 degree rotated)
+    If a red move is simulated, the saved board and target value is flippes to the perspective of the black player
+    """
+
+    global game_states, target_values
+
     game: GameInterface = Hex(board_size)
-    board, black_to_play = game.get_state(False)
 
+    # Create the root node with no parent, starting with black to play
+    _, black_to_play = game.get_state(False) # black_to_play is always True in this implementation
     root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_acions(True), game.get_action_count())
 
-    # make first move without copies
-    mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
-
-    mcts.UCTSearch(search_iterations)
-    best_action = mcts.root.best_action() # root_node.best_action() # mcts.root.best_action()
-
-    current_game_state, current_black_to_play = game.get_state(False)
-    if(current_black_to_play): # should always be opening move by black
-        current_target_values = mcts.root.action_values / np.sum(mcts.root.action_values) # root_node.action_values / np.sum(root_node.action_values)
-
-        # adding original board
-        game_states.append(deepcopy(current_game_state))
-        target_values.append(current_target_values)
-    
-    root_node = mcts.root.get_child(best_action)
-    root_node.make_root()
-
-    game.perform_action(best_action)
-
-    # play the rest of the game
+    # Play the game
     while not game.is_final_state():
         
         mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
 
+        # This is what takes all the time
         mcts.UCTSearch(search_iterations)
-        best_action = mcts.root.best_action() # root_node.best_action() # mcts.root.best_action()
 
-        node_action_values = mcts.root.action_values # root_node.action_values
+        current_game_board, current_black_to_play = game.get_state(False)
 
-        current_game_state, current_black_to_play = game.get_state(False)
-        if(current_black_to_play):
-            current_target_values = node_action_values / np.sum(node_action_values)
+        new_game_states, new_target_values = create_cases(board_size, 
+                                                          current_game_board, 
+                                                          current_black_to_play, 
+                                                          mcts.root.action_values, 
+                                                          mcts.root.legal_actions)
 
-            # adding original board
-            game_states.append(deepcopy(current_game_state))
-            target_values.append(current_target_values)
-
-            # adding 180 degree rotated board
-            game_states.append(deepcopy(game.get_fully_rotated_state(False)[0]))
-            fully_rotated_current_target_values = np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten()
-            target_values.append(fully_rotated_current_target_values)
-
-        else:
-            mask = np.isin(np.arange(board_size**2), mcts.root.legal_actions) # root_node.legal_actions) # mcts.root.legal_actions) # replace with root_node ? 
-            current_target_values = (flip_target_values - node_action_values) * mask
-            current_target_values = current_target_values / np.sum(current_target_values)
-
-            current_target_values_copy = current_target_values.reshape((board_size, board_size)).copy()
-            current_target_values_copy2 = current_target_values_copy.copy()
-            
-            # flipping the board to red's perspective
-            board_np = np.array(current_game_state)
-            empty_mask = np.all(board_np == [False, False], axis=-1)
-            board_np = np.logical_not(board_np)
-            board_np[empty_mask] = [False, False]
-
-            board_copy = board_np.copy()
-            
-            for i in range(board_size):
-                for j in range(board_size):
-                    board_np[board_size - j - 1][board_size - i - 1] = board_copy[i][j]
-                    current_target_values_copy[board_size - j - 1][board_size - i - 1] = current_target_values_copy2[i][j]
-            
-            current_target_values = current_target_values_copy.flatten()
-
-            # adding "original" board
-            game_states.append(deepcopy(board_np))
-            target_values.append(current_target_values)
-
-            # adding 180 degree rotated board
-            game_states.append(deepcopy(np.rot90(board_np, k=2)))
-            target_values.append(np.rot90(current_target_values_copy, k=2).flatten())
+        # Add to the training cases
+        game_states.extend(new_game_states)
+        target_values.extend(new_target_values)
         
+        # Find the best action and the child in the tree corresponding to that action
+        # Make that child the new root and perform the action
+        best_action = mcts.root.best_action()
         root_node = mcts.root.get_child(best_action)
-        root_node.make_root()
+
+        # Deletes the link to the parent, and thus python will 
+        # delete the whole tree except the subtree of this node
+        root_node.make_root() 
 
         game.perform_action(best_action)
-        # game_states.append(deepcopy(game))
         # game.display_current_state()
+
+
+def convert_to_ndarray(board_size: int, game_states: list[np.ndarray], target_values: list[np.ndarray]) -> tuple[np.ndarray]:
+    new_game_states = np.zeros(shape=(len(game_states), board_size, board_size, 2), dtype=np.float32)
+    new_target_values = np.zeros(shape=(len(target_values), board_size**2), dtype=np.float32)
+
+    for i in range(len(game_states)):
+        new_game_states[i,:,:,:] = game_states[i]
+        new_target_values[i,:] = target_values[i]
+        
+    return new_game_states, new_target_values
+
+
+# Hyperparameters
+board_size = 3
+
+exploration_weight = 1.0
+search_iterations = 500
+num_games = 100
+
+game_states: list[np.ndarray] = []
+target_values: list[np.ndarray] = []
+
+
+# ------------------- Game -------------------
+
+# for game_number in range(num_games):
+
+#     print(f'Simulating game number {game_number+1} of {num_games}')
+
+#     simulate_game(board_size, exploration_weight, search_iterations)
+
+
+# game_states, target_values = convert_to_ndarray(board_size, game_states, target_values)
+
+
+# with open('3by3_500iter_100_games.npy', 'wb') as f:
+#     np.save(f, game_states)
+#     np.save(f, target_values)
+
+
+with open('3by3_500iter_100_games.npy', 'rb') as f:
+    game_states: np.ndarray = np.load(f)
+    target_values: np.ndarray = np.load(f)
+
+# for i in range(game_states.shape[0]):
+#     print(target_values[i,:].reshape((board_size, board_size)))
+#     Hex(board_size, game_states[i,:,:,:]).display_current_state()
 
 
 # ------------------- Convolutional neural network -------------------
 # this part trains the convolutional neural network on the collected game states and target values
 # the model is trained to predict the target values from the game states
 
+
+# Hyperparameters
+
+learning_rate = 1e-3
+l2_regularization = 1e-4 # Set to 0 for no regularization
+batch_size = 32
+num_epochs = 10
+log_interval = 1
+
+# Device configuration
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Model
+model = LinearNeuralNet(input_size=3*3*2, hidden_size=1000, output_size=3*3)
+# model = ConvolutionalNeuralNet(board_size)
+# model = DeepConvolutionalNeuralNet(board_size)
+
+# Loss and optimizer
+criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+
+
+# Split the data into batches
+dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
+data_loader = DataLoader(dataset, batch_size=batch_size)
+
+loss_history = []
+
 # Train the model
-total_step = len(game_states)
-for epoch in range(num_epochs):
-    for i, (game_state, target_value) in enumerate(zip(game_states, target_values)):
-        tensor_input_board = torch.tensor(game_state, dtype=torch.float32).to(device)
-        input_board = tensor_input_board.permute(2, 0, 1).unsqueeze(0).to(device)
+for epoch in range(1, num_epochs+1):
+    for i, (data, target) in enumerate(data_loader):
+        data = data.permute(0, 3, 1, 2).to(device)
+        target = target.to(device)
 
-        tensor_target_value = torch.tensor(target_value, dtype=torch.float32).to(device)
-
-        outputs = model(input_board).to(device)
-        loss = criterion(outputs[0], tensor_target_value).to(device)
+        print(data.shape)
+        output = model(data)
+        loss = criterion(output, target)
 
         # Backward and optimize
         optimizer.zero_grad()
         loss.backward()
+        loss_history.append(float(loss))
         optimizer.step()
 
-        if (i+1) % 10 == 0:
-            print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}' 
-                   .format(epoch+1, num_epochs, i+1, total_step, loss.item()))
+        if i % log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, i * batch_size, len(data_loader.dataset),
+                100. * i / len(data_loader), loss.item()))
+
+plt.plot(list(range(len(loss_history))), loss_history)
+plt.title('Loss during training')
+plt.xlabel('Batch')
+plt.ylabel('Loss')
+plt.show()
+
+game: GameInterface = Hex(board_size, current_black_player=True)
+game.display_current_state()
+board: np.ndarray = game.get_state(False)[0]
+data = torch.from_numpy(board).float()
+data = data.unsqueeze(0).permute(0, 3, 1, 2)
+print(data.shape, data)
+
+with torch.no_grad():
+    predictions = model(data)
+
+print(predictions.reshape((board_size, board_size)))
+
 
 
 # Test the model

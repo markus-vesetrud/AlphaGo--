@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn.functional as F
@@ -7,15 +8,17 @@ import torch.nn.functional as F
 class LinearNeuralNet(torch.nn.Module):
     def __init__(self, input_size: int, hidden_size: int, output_size: int):
         super(LinearNeuralNet, self).__init__()
-        self.l1 = torch.nn.Linear(input_size, hidden_size)
-        self.relu = torch.nn.ReLU()
-        self.l2 = torch.nn.Linear(hidden_size, output_size)
+        self.l1 = nn.Linear(input_size, hidden_size)
+        self.l2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = self.l1(x)
-        out = self.relu(out)
-        out = self.l2(out)
-        return out
+
+        x = torch.flatten(x, start_dim=1)
+        x = self.l1(x)
+        x = F.relu(x)
+        x = self.l2(x)
+        x = F.softmax(x, dim=1)
+        return x
     
 class ConvolutionalNeuralNet(nn.Module):
     def __init__(self, board_size):
@@ -34,7 +37,7 @@ class ConvolutionalNeuralNet(nn.Module):
         x = F.relu(self.conv2(x))
 
         # Flatten the tensor
-        x = x.view(-1, 128 * self.board_size * self.board_size)
+        x = torch.flatten(x, start_dim=1) # x = x.view(-1, 128 * self.board_size * self.board_size)
 
         # Fully connected layer
         x = self.fc(x)
