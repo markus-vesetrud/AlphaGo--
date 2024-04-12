@@ -9,6 +9,7 @@ from game_interface import GameInterface
 from hex import Hex
 from mcts import MCTreeSearch, MCTreeNode
 from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet
+from typing import Callable
 
 
 def softmax(x: np.ndarray):
@@ -114,7 +115,8 @@ def create_cases(board_size: int, game_board: np.ndarray, black_to_play: bool, n
     return game_states, target_values
 
 
-def simulate_game(board_size: int, exploration_weight: float, search_iterations: int) -> None:
+def simulate_game(board_size: int, exploration_weight: float, search_iterations: int,
+                  action_selection_policy: Callable) -> None:
     """
     Simulates a game and collects the game states and target values (probabilities of actions)
     in the global variables game_states and target_values
@@ -134,7 +136,7 @@ def simulate_game(board_size: int, exploration_weight: float, search_iterations:
     # Play the game
     while not game.is_final_state():
         
-        mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
+        mcts = MCTreeSearch(root_node, game, exploration_weight, action_selection_policy)
 
         # This is what takes all the time
         mcts.UCTSearch(search_iterations)

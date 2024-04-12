@@ -9,6 +9,7 @@ except ModuleNotFoundError:
     from nim import Nim
 from copy import deepcopy
 import random
+from typing import Callable
 
 # Overall view
 # 1. Tree Search - Traversing the tree from the root to a leaf node by using the tree policy.
@@ -27,8 +28,8 @@ class MCTreeNode:
                  black_to_play: bool,  # board: np.ndarray, black_to_play: bool, 
                  legal_actions: list[int], total_action_count: int) -> None:
         
-        # TODO: Reformat the children to be linked to by a dictionary with all the legal moves as possible values
-
+        # Idea: Reformat the children to be linked to by a dictionary with all the legal moves as possible values
+        # This may incurr a performance penalty, but would further separate Hex from MCTS
 
         # Pointers to the parent node and children nodes
         self.parent: MCTreeNode = parent
@@ -99,14 +100,15 @@ class MCTreeNode:
 
 
     def select_move(self, exploration_weight: float):
-        # Division by zero issues here. 
-        # The paper does not state how to deal with problems when you have not yet visited the state
         best_action = -1
         if self.black_to_play:
             best_action_value = -np.inf
             for action in self.legal_actions:
                 if self.children_visit_count[action] == 0:
                     # Ensure all actions are tried at least once, which is neccecary for MCTS
+                    # Otherwise you would encounter division by zero issues with the exploration term. 
+                    # The MCTS in Go paper does not state how to deal with problems when you have not yet visited the state,
+                    # but other sources says to visit each state at least once
                     return action
                 else:
                     new_action_value = self.action_values[action] + exploration_weight*np.sqrt(np.log(self.total_visit_count)/self.children_visit_count[action])
@@ -130,11 +132,23 @@ class MCTreeNode:
 
         return best_action
 
+def random_action(game_board: np.ndarray, play_as_black: bool, legal_actions: list[int]) -> int:
+    return random.choice(legal_actions)
 
 class MCTreeSearch:
-    def __init__(self, root: MCTreeNode, game: GameInterface, exploration_weight: float, random_policy: bool) -> None:
+    def __init__(self, root: MCTreeNode, game: GameInterface, exploration_weight: float, 
+                 action_selection_policy: Callable = random_action) -> None:
+        """
+        Instantiates a Monte Carlo Tree search. 
+        The actual tree is a bunch of MCTreeNodes linking to each other, and 
+        the result of the search is saved in those nodes. 
+
+        Note that action_selection_policy is a function with a signature 
+        (game_board: np.ndarray, play_as_black: bool, legal_actions: list[int]) -> int
+        Where the return value is one of the integers in legal_actions.
+        """
         self.root = root
-        self.random_policy = random_policy
+        self.action_selection_policy = action_selection_policy
 
         # One to modify, and one to save
         self.game = game
@@ -145,10 +159,8 @@ class MCTreeSearch:
 
     def sim_default(self):
         while not self.game.is_final_state():
-            if self.random_policy:
-                action = random.choice(self.game.get_legal_acions(True))
-            else:
-                raise NotImplementedError("Use policy network")
+            game_board, black_to_play = self.game.get_state(False)
+            action = self.action_selection_policy(game_board, black_to_play, self.game.get_legal_acions())
             self.game.perform_action(action)
 
         return self.game.get_final_state_reward()
@@ -209,7 +221,7 @@ if __name__ == '__main__':
 
     while not game.is_final_state():
         
-        mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
+        mcts = MCTreeSearch(root_node, game, exploration_weight)
 
 
         mcts.UCTSearch(search_iterations)
