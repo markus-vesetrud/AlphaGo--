@@ -174,7 +174,7 @@ class Hex(GameInterface):
 
 
 
-    def get_legal_acions(self, flatten: bool = True) -> np.ndarray:
+    def get_legal_acions(self, flatten: bool = True) -> list[int | tuple[int]]:
         empty_x_indices, empty_y_indices = np.where((self.__board == np.zeros(shape=(1,1,2), dtype=np.bool_)).all(axis=2))
         result = []
         if flatten:

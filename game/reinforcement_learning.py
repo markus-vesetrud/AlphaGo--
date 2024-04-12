@@ -17,7 +17,47 @@ def softmax(x: np.ndarray):
     return e_x / e_x.sum()
 
 
-def create_cases(board_size, game_board, black_to_play, node_action_values, legal_actions) -> tuple[list[np.ndarray]]:
+def flip_board_perspective(board_size, game_board: np.ndarray):
+    """
+    Flips the board between the perspective of red and black
+    """
+
+    # Flips the red tiles to black tiles and vice versa
+    empty_mask = np.all(game_board == [False, False], axis=-1)
+    game_board = np.logical_not(game_board)
+    game_board[empty_mask] = [False, False]
+
+    # Inverts the board so the lines from black start to black end now goes from red start to red end
+    # Depending on how you see it, this also rotates the board 180 degrees, but that leaves a board in the same state
+    board_copy = game_board.copy()
+    for i in range(board_size):
+        for j in range(board_size):
+            game_board[board_size - j - 1][board_size - i - 1] = board_copy[i][j]
+    
+
+    return game_board
+
+def flip_target_values_position(board_size, current_target_values: np.ndarray) -> np.ndarray:
+    """
+    Switches around the positions of the numbers in the given array, 
+    in the same way flip_board_perspective switches the position,
+    but does NOT switch high target values to low target values and vice versa.
+    """
+    # Reshape to 2D
+    current_target_values = current_target_values.reshape((board_size, board_size))
+    current_target_values_copy = current_target_values.copy()
+
+    # Inverts the target values corresponding to a board where the lines from 
+    # black start to black end now goes from red start to red end
+    # See function flip_board_perspective
+    for i in range(board_size):
+        for j in range(board_size):
+            current_target_values[board_size - j - 1][board_size - i - 1] = current_target_values_copy[i][j]
+        
+    return current_target_values.flatten()
+
+
+def create_cases(board_size: int, game_board: np.ndarray, black_to_play: bool, node_action_values: list[float], legal_actions: list[int]) -> tuple[list[np.ndarray]]:
     """
     Takes in a board, which players turn it is, and information about the best move
 
@@ -60,33 +100,16 @@ def create_cases(board_size, game_board, black_to_play, node_action_values, lega
 
         current_target_values = softmax(current_target_values + legal_inf_mask)
 
+        current_target_values = flip_target_values_position(board_size, current_target_values)
+        game_board = flip_board_perspective(board_size, game_board)
 
-        # create 2 2D copies of the 
-        current_target_values_copy = current_target_values.reshape((board_size, board_size)).copy()
-        current_target_values_copy2 = current_target_values_copy.copy()
-        
-        # flipping the board to red's perspective
-        board_np = np.array(game_board)
-        empty_mask = np.all(board_np == [False, False], axis=-1)
-        board_np = np.logical_not(board_np)
-        board_np[empty_mask] = [False, False]
-
-        board_copy = board_np.copy()
-        
-        for i in range(board_size):
-            for j in range(board_size):
-                board_np[board_size - j - 1][board_size - i - 1] = board_copy[i][j]
-                current_target_values_copy[board_size - j - 1][board_size - i - 1] = current_target_values_copy2[i][j]
-        
-        current_target_values = current_target_values_copy.flatten()
-
-        # adding "original" board
-        game_states.append(deepcopy(board_np))
+        # adding perspective flipped board
+        game_states.append(deepcopy(game_board))
         target_values.append(current_target_values)
 
-        # adding 180 degree rotated board
-        game_states.append(deepcopy(np.rot90(board_np, k=2)))
-        target_values.append(np.rot90(current_target_values_copy, k=2).flatten())
+        # adding perspective flipped and 180 degree rotated board
+        game_states.append(deepcopy(np.rot90(game_board, k=2)))
+        target_values.append(np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten())
     
     return game_states, target_values
 
@@ -150,6 +173,63 @@ def convert_to_ndarray(board_size: int, game_states: list[np.ndarray], target_va
         new_target_values[i,:] = target_values[i]
         
     return new_game_states, new_target_values
+
+
+def rescale_prediction(prediction: np.ndarray, legal_actions: list[int]) -> np.ndarray:
+    """
+    Rescales the prediction so that the entries with indices not specified by legal_actions are 0,
+    but the sum of prediction are still 1.
+    """
+    legal_mask = np.isin(np.arange(board_size**2), legal_actions)
+
+    prediction *= legal_mask
+
+    return prediction / np.sum(prediction)
+
+
+
+def calculate_action(model: nn.Module, board_size: int, game_board: np.ndarray, play_as_black: bool, legal_actions: list[int], best: bool) -> int:
+    """
+    Runs the given model on the game_board, and selects an action from the output of the model
+    With best=True the best action will always be selected, if False a random action will be selected
+    with probability depending on the output of the model
+    """
+
+    # If it should play as red, then flip the prespective
+    # This makes a new board where black is in the same situation as red was
+    # Then the model finds (hopefully) good moves in this position
+    if not play_as_black:
+        game_board = flip_board_perspective(board_size, game_board)
+    
+    # Convert the board to the format expected by the model
+    # (A torch float32 Tensor with an added dimension for the batch size and the last dimension moved to the front)
+    game_board = torch.from_numpy(game_board).float()
+    game_board = game_board.unsqueeze(0).permute(0, 3, 1, 2)
+
+    model.eval()
+    with torch.no_grad():
+        prediction = model(game_board)
+    
+    # Extract the prediction
+    prediction = np.array(prediction[0,:])
+
+    # If it played as red, then the prediction needs to be flipped back again
+    # After this, the prediction will correspond to the given board, and not 
+    # the board the model saw
+    if not play_as_black:
+        prediction = flip_target_values_position(board_size, prediction)
+
+    # Set illegal moves to be zero, important that this is done after the flipping above
+    prediction = rescale_prediction(prediction, legal_actions)
+
+    print(prediction.reshape((board_size, board_size)))
+
+    # Just return the best prediction
+    if best:
+        return prediction.argmax()
+    # Return a prediction proportional to the probability of that prediction
+    else:
+        return np.random.choice(np.arange(prediction.shape[0]), p=prediction)
 
 
 # Hyperparameters
@@ -227,7 +307,6 @@ for epoch in range(1, num_epochs+1):
         data = data.permute(0, 3, 1, 2).to(device)
         target = target.to(device)
 
-        print(data.shape)
         output = model(data)
         loss = criterion(output, target)
 
@@ -248,18 +327,13 @@ plt.xlabel('Batch')
 plt.ylabel('Loss')
 plt.show()
 
-game: GameInterface = Hex(board_size, current_black_player=True)
-game.display_current_state()
-board: np.ndarray = game.get_state(False)[0]
-data = torch.from_numpy(board).float()
-data = data.unsqueeze(0).permute(0, 3, 1, 2)
-print(data.shape, data)
+game: GameInterface = Hex(board_size, current_black_player=False)
 
-with torch.no_grad():
-    predictions = model(data)
-
-print(predictions.reshape((board_size, board_size)))
-
+while not game.is_final_state():
+    game.display_current_state()
+    board, black_to_play = game.get_state(False)
+    action = calculate_action(model, board_size, board, play_as_black=black_to_play, legal_actions=game.get_legal_acions(), best=False)
+    game.perform_action(action)
 
 
 # Test the model
