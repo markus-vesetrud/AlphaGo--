@@ -232,6 +232,41 @@ def calculate_action(model: nn.Module, board_size: int, game_board: np.ndarray, 
         return np.random.choice(np.arange(prediction.shape[0]), p=prediction)
 
 
+def starter_win_ratio(model: nn.Module, board_size: int, best: bool, num_games: int = 10000):
+    """
+    Plays the model against itself num_games times
+    Returns how often the model won as black
+    A random baseline is around 66%+-0.5% while perfect play is 100%
+
+    This may not be a good way to evaluate our models, a model may get 100% if allowed to do the best move, 
+    but still almost get random results if using the probability distribution it gives, 
+    because a single mistake will lose you the game. And if there is only a 50% chance to pick the correct move 
+    then that is far from enough, and the game will not look very intelligent.
+    """
+    total_starting_wins = 0
+
+    for i in range(num_games):
+        # Create a new game alternating between red and black starts
+        black_start = i%2==0
+        game: GameInterface = Hex(board_size, current_black_player=black_start)
+
+        while not game.is_final_state():
+            board, black_to_play = game.get_state(False)
+            action = calculate_action(model, board_size, board, play_as_black=black_to_play, 
+                                      legal_actions=game.get_legal_acions(), best=best)
+            game.perform_action(action)
+        
+        # The final_state_reward is 1 if black won, and 0 if red won
+        # This code adds 1 to the total_starting_wins count if the starting player won
+        if black_start:
+            total_starting_wins += game.get_final_state_reward()
+        else:
+            total_starting_wins += 1-game.get_final_state_reward()
+
+    
+    return total_starting_wins/num_games
+
+
 # Hyperparameters
 board_size = 3
 
