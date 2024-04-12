@@ -6,17 +6,32 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 
 class LinearNeuralNet(torch.nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, output_size: int):
+    def __init__(self, board_size: int):
         super(LinearNeuralNet, self).__init__()
-        self.l1 = nn.Linear(input_size, hidden_size)
-        self.l2 = nn.Linear(hidden_size, output_size)
+        input_size = 2*board_size**2
+        self.l1 = nn.Linear(2*board_size**2, input_size*2)
+        self.l2 = nn.Linear(input_size*2, input_size*4)
+        self.l3 = nn.Linear(input_size*4, input_size*2)
+        self.l4 = nn.Linear(input_size*2, input_size//2)
+        self.dropout = nn.Dropout(0.25)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
         x = torch.flatten(x, start_dim=1)
+        
         x = self.l1(x)
         x = F.relu(x)
+        x = self.dropout(x)
+
         x = self.l2(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l3(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l4(x)
         x = F.softmax(x, dim=1)
         return x
     
