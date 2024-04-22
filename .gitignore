@@ -2,5 +2,6 @@
 /game/__pycache__
 *.npy
 model.pt
-hex_client_23/
+game/hex_client_23/*
+#!game/hex_client_23/ActorClient.py
 __MACOSX/
