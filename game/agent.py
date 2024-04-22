@@ -19,11 +19,12 @@ class RandomAgent(Agent):
 
 
 class PolicyAgent(Agent):
-    def __init__(self, board_size, model: nn.Module, epsilon: float) -> None:
+    def __init__(self, board_size, model: nn.Module, device, epsilon: float) -> None:
         super().__init__()
 
         self.board_size = board_size
         self.model = model
+        self.device = device
         self.epsilon = epsilon
 
 
@@ -56,12 +57,12 @@ class PolicyAgent(Agent):
         
         # Convert the board to the format expected by the model
         # (A torch float32 Tensor with an added dimension for the batch size and the last dimension moved to the front)
-        game_board = torch.from_numpy(game_board).float()
+        game_board = torch.from_numpy(game_board).to(self.device).float()
         game_board = game_board.unsqueeze(0).permute(0, 3, 1, 2)
 
         self.model.eval()
         with torch.no_grad():
-            prediction = self.model(game_board)
+            prediction = self.model(game_board).cpu()
         
         # Extract the prediction
         prediction = np.array(prediction[0,:])
