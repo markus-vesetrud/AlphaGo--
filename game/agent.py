@@ -72,12 +72,15 @@ class PolicyAgent(Agent):
         if not play_as_black:
             prediction = flip_target_values_position(self.board_size, prediction)
 
+        if verbose:
+            print(prediction.reshape((self.board_size, self.board_size)))
+
         # Set illegal moves to be zero, important that this is done after the flipping above
         prediction = self.__rescale_prediction(prediction, legal_actions)
 
         if verbose:
             print(prediction.reshape((self.board_size, self.board_size)))
-
+            print()
 
         # Return the best prediction
         return prediction.argmax()
