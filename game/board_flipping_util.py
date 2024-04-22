@@ -5,6 +5,7 @@ from copy import deepcopy
 def flip_board_perspective(board_size, game_board: np.ndarray):
     """
     Flips the board between the perspective of red and black
+    (╯°□°)╯︵ ┻━┻
     """
 
     # Flips the red tiles to black tiles and vice versa
