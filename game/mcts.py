@@ -9,7 +9,7 @@ except ModuleNotFoundError:
     from nim import Nim
 from copy import deepcopy
 import random
-from typing import Callable
+from agent import Agent, RandomAgent
 
 # Overall view
 # 1. Tree Search - Traversing the tree from the root to a leaf node by using the tree policy.
@@ -132,23 +132,17 @@ class MCTreeNode:
 
         return best_action
 
-def random_action(game_board: np.ndarray, play_as_black: bool, legal_actions: list[int]) -> int:
-    return random.choice(legal_actions)
 
 class MCTreeSearch:
     def __init__(self, root: MCTreeNode, game: GameInterface, exploration_weight: float, 
-                 action_selection_policy: Callable = random_action) -> None:
+                 agent: Agent = RandomAgent()) -> None:
         """
         Instantiates a Monte Carlo Tree search. 
         The actual tree is a bunch of MCTreeNodes linking to each other, and 
         the result of the search is saved in those nodes. 
-
-        Note that action_selection_policy is a function with a signature 
-        (game_board: np.ndarray, play_as_black: bool, legal_actions: list[int]) -> int
-        Where the return value is one of the integers in legal_actions.
         """
         self.root = root
-        self.action_selection_policy = action_selection_policy
+        self.agent = agent
 
         # One to modify, and one to save
         self.game = game
@@ -160,7 +154,7 @@ class MCTreeSearch:
     def sim_default(self):
         while not self.game.is_final_state():
             game_board, black_to_play = self.game.get_state(False)
-            action = self.action_selection_policy(game_board, black_to_play, self.game.get_legal_acions())
+            action = self.agent.select_action(game_board, black_to_play, self.game.get_legal_acions())
             self.game.perform_action(action)
 
         return self.game.get_final_state_reward()

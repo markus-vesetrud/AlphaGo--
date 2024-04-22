@@ -2,142 +2,62 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
-from copy import deepcopy
 import matplotlib.pyplot as plt
+import multiprocessing
 
 from game_interface import GameInterface
 from hex import Hex
 from mcts import MCTreeSearch, MCTreeNode
 from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet
-from typing import Callable
+from board_flipping_util import create_training_cases
+from agent import PolicyAgent
 
 
-def softmax(x: np.ndarray):
-    # Subtracting the max value for numerical stability, it does not influence the answer
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum()
-
-
-def flip_board_perspective(board_size, game_board: np.ndarray):
-    """
-    Flips the board between the perspective of red and black
-    """
-
-    # Flips the red tiles to black tiles and vice versa
-    empty_mask = np.all(game_board == [False, False], axis=-1)
-    game_board = np.logical_not(game_board)
-    game_board[empty_mask] = [False, False]
-
-    # Inverts the board so the lines from black start to black end now goes from red start to red end
-    # Depending on how you see it, this also rotates the board 180 degrees, but that leaves a board in the same state
-    board_copy = game_board.copy()
-    for i in range(board_size):
-        for j in range(board_size):
-            game_board[board_size - j - 1][board_size - i - 1] = board_copy[i][j]
-    
-
-    return game_board
-
-def flip_target_values_position(board_size, current_target_values: np.ndarray) -> np.ndarray:
-    """
-    Switches around the positions of the numbers in the given array, 
-    in the same way flip_board_perspective switches the position,
-    but does NOT switch high target values to low target values and vice versa.
-    """
-    # Reshape to 2D
-    current_target_values = current_target_values.reshape((board_size, board_size))
-    current_target_values_copy = current_target_values.copy()
-
-    # Inverts the target values corresponding to a board where the lines from 
-    # black start to black end now goes from red start to red end
-    # See function flip_board_perspective
-    for i in range(board_size):
-        for j in range(board_size):
-            current_target_values[board_size - j - 1][board_size - i - 1] = current_target_values_copy[i][j]
+class ReinforcementLearning():
+    def __init__(self, board_size: int, exploration_weight: float, epsilon: float, 
+                 search_iterations: int, num_games: int, total_search_count: int,
+                 batch_size: int, num_epochs: int, log_interval: int,
+                 loss_fn, optimizer, model: nn.Module,
+                 verbose: bool, initial_replay_buffer: np.ndarray) -> None:
         
-    return current_target_values.flatten()
+        self.board_size = board_size
+        self.exploration_weight = exploration_weight
+        self.epsilon = epsilon
+        self.search_iterations = search_iterations
+        self.num_games = num_games
+        self.total_search_count = total_search_count
 
-
-def create_cases(board_size: int, game_board: np.ndarray, black_to_play: bool, node_action_values: list[float], legal_actions: list[int]) -> tuple[list[np.ndarray]]:
-    """
-    Takes in a board, which players turn it is, and information about the best move
-
-    Returns a list of 2 game states and 2 target values, if it is red's turn, the player perspective is flipped
-    The 2 game states and target values returned are 180 degree rotations about each other
-    """
-    game_states = []
-    target_values = []
-    node_action_values = np.array(node_action_values, dtype=np.float32)
-
-    # The mask is a 1D array of booleans signifying whether the action is a legal action
-    legal_mask = np.isin(np.arange(board_size**2), legal_actions)
-    # The inf mask is 0 of the action is legal and -inf if not
-    legal_inf_mask = np.array([(0.0 if legal else -np.inf) for legal in legal_mask], dtype=np.float32)
-
-
-    if(black_to_play):
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
+        self.log_interval = log_interval
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.model = model
         
-        current_target_values = softmax(node_action_values + legal_inf_mask)
-        # adding original board
-        game_states.append(deepcopy(game_board))
-        target_values.append(current_target_values)
+        self.verbose = verbose
+        self.replay_buffer = initial_replay_buffer
 
-        # adding 180 degree rotated board
-        game_states.append(deepcopy(np.rot90(game_board, k=2)))
-        fully_rotated_current_target_values = np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten()
-        target_values.append(fully_rotated_current_target_values)
+    def convert_to_ndarray(self, game_states: list[np.ndarray], target_values: list[np.ndarray]) -> tuple[np.ndarray]:
+        new_game_states = np.zeros(shape=(len(game_states), self.board_size, self.board_size, 2), dtype=np.float32)
+        new_target_values = np.zeros(shape=(len(target_values), self.board_size**2), dtype=np.float32)
 
-    else:
-        # Flip the board from player2's perspective back to player1's perspective
+        for i in range(len(game_states)):
+            new_game_states[i,:,:,:] = game_states[i]
+            new_target_values[i,:] = target_values[i]
+            
+        return new_game_states, new_target_values
 
-        # node_action_values is between 0 and 1, taking 1 minus that value flips it
-        current_target_values = (np.ones(board_size*board_size) - node_action_values)
+    def simulate_game(self, send_connection) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Simulates a single game and returns the game states and target values (probabilities of actions)
 
-        # In previous implementation:
-        # Sometimes np.sum(current_target_values) == 0
-        # This happens if the search is 100% confident black will win no matter what.
-        # In this case the node_action_values are 1.0 (exactly) for legal actions and 0.0 for illegal actions
-        # That would result in current_target_values all being 0.0 and equally bad
-
-        current_target_values = softmax(current_target_values + legal_inf_mask)
-
-        current_target_values = flip_target_values_position(board_size, current_target_values)
-        game_board = flip_board_perspective(board_size, game_board)
-
-        # adding perspective flipped board
-        game_states.append(deepcopy(game_board))
-        target_values.append(current_target_values)
-
-        # adding perspective flipped and 180 degree rotated board
-        game_states.append(deepcopy(np.rot90(game_board, k=2)))
-        target_values.append(np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten())
-    
-    return game_states, target_values
-
-
-def simulate_games(model: nn.Module, board_size: int, exploration_weight: float, 
-                   search_iterations: int, num_games: int, verbose: bool,) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Simulates a seires of games and returns the game states and target values (probabilities of actions)
-
-    All moves are saved in two configurations (original and 180 degree rotated)
-    If a red move is simulated, the saved board and target value is flippes to the perspective of the black player
-    """
-
-    game_states: list[np.ndarray] = []
-    target_values: list[np.ndarray] = []
-
-
-    for game_number in range(1, num_games+1):
-        
-        if verbose:
-            print(f'Simulating game number {game_number} of {num_games}')
-
-        def action_selection_policy(game_board: np.ndarray, play_as_black: bool, legal_actions: list[int]) -> int:
-            return calculate_action(model, board_size, game_board, play_as_black, legal_actions, best=False)
-
-
-        game: GameInterface = Hex(board_size)
+        All moves are saved in two configurations (original and 180 degree rotated)
+        If a red move is simulated, the saved board and target value is flippes to the perspective of the black player
+        """
+            
+        agent = PolicyAgent(self.board_size, self.model, self.epsilon)
+        game: GameInterface = Hex(self.board_size)
 
         # Create the root node with no parent, starting with black to play
         _, black_to_play = game.get_state(False) # black_to_play is always True in this implementation
@@ -146,19 +66,20 @@ def simulate_games(model: nn.Module, board_size: int, exploration_weight: float,
         # Play a game
         while not game.is_final_state():
             
-            mcts = MCTreeSearch(root_node, game, exploration_weight, action_selection_policy)
+            mcts = MCTreeSearch(root_node, game, self.exploration_weight, agent)
 
             # This is what takes all the time
-            mcts.UCTSearch(search_iterations)
+            mcts.UCTSearch(self.search_iterations)
 
             current_game_board, current_black_to_play = game.get_state(False)
 
-            new_game_states, new_target_values = create_cases(board_size, current_game_board, current_black_to_play, 
-                                                              mcts.root.action_values, mcts.root.legal_actions)
+            new_game_states, new_target_values = create_training_cases(self.board_size, current_game_board, current_black_to_play, 
+                                                            mcts.root.action_values, mcts.root.legal_actions)
 
             # Add to the training cases
-            game_states.extend(new_game_states)
-            target_values.extend(new_target_values)
+            send_connection.send((new_game_states, new_target_values))
+            # game_states.extend(new_game_states)
+            # target_values.extend(new_target_values)
             
             # Find the best action and the child in the tree corresponding to that action
             # Make that child the new root and perform the action
@@ -171,81 +92,107 @@ def simulate_games(model: nn.Module, board_size: int, exploration_weight: float,
 
             game.perform_action(best_action)
             # game.display_current_state()
-
-    return convert_to_ndarray(board_size, game_states, target_values)
-
-
-
-def convert_to_ndarray(board_size: int, game_states: list[np.ndarray], target_values: list[np.ndarray]) -> tuple[np.ndarray]:
-    new_game_states = np.zeros(shape=(len(game_states), board_size, board_size, 2), dtype=np.float32)
-    new_target_values = np.zeros(shape=(len(target_values), board_size**2), dtype=np.float32)
-
-    for i in range(len(game_states)):
-        new_game_states[i,:,:,:] = game_states[i]
-        new_target_values[i,:] = target_values[i]
-        
-    return new_game_states, new_target_values
-
-
-def rescale_prediction(prediction: np.ndarray, legal_actions: list[int]) -> np.ndarray:
-    """
-    Rescales the prediction so that the entries with indices not specified by legal_actions are 0,
-    but the sum of prediction are still 1.
-    """
-    legal_mask = np.isin(np.arange(board_size**2), legal_actions)
-
-    prediction *= legal_mask
-
-    return prediction / np.sum(prediction)
-
-
-
-def calculate_action(model: nn.Module, board_size: int, game_board: np.ndarray, play_as_black: bool, legal_actions: list[int], best: bool, verbose: bool = False) -> int:
-    """
-    Runs the given model on the game_board, and selects an action from the output of the model
-    With best=True the best action will always be selected, if False a random action will be selected
-    with probability depending on the output of the model
-    """
-
-    # If it should play as red, then flip the prespective
-    # This makes a new board where black is in the same situation as red was
-    # Then the model finds (hopefully) good moves in this position
-    if not play_as_black:
-        game_board = flip_board_perspective(board_size, game_board)
     
-    # Convert the board to the format expected by the model
-    # (A torch float32 Tensor with an added dimension for the batch size and the last dimension moved to the front)
-    game_board = torch.from_numpy(game_board).float()
-    game_board = game_board.unsqueeze(0).permute(0, 3, 1, 2)
 
-    model.eval()
-    with torch.no_grad():
-        prediction = model(game_board)
-    
-    # Extract the prediction
-    prediction = np.array(prediction[0,:])
+    def simulate_games(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Simulates a seires of games and returns the game states and target values (probabilities of actions)
 
-    # If it played as red, then the prediction needs to be flipped back again
-    # After this, the prediction will correspond to the given board, and not 
-    # the board the model saw
-    if not play_as_black:
-        prediction = flip_target_values_position(board_size, prediction)
+        All moves are saved in two configurations (original and 180 degree rotated)
+        If a red move is simulated, the saved board and target value is flippes to the perspective of the black player
+        """
 
-    # Set illegal moves to be zero, important that this is done after the flipping above
-    prediction = rescale_prediction(prediction, legal_actions)
+        game_states = []
+        target_values = []
 
-    if verbose:
-        print(prediction.reshape((board_size, board_size)))
+        pipes = [multiprocessing.Pipe() for i in range(self.num_games)]
+        processes = [multiprocessing.Process(target=self.simulate_game, args=(pipes[i][1], )) for i in range(self.num_games)]
 
-    # Just return the best prediction
-    if best:
-        return prediction.argmax()
-    # Return a prediction proportional to the probability of that prediction
-    else:
-        return np.random.choice(np.arange(prediction.shape[0]), p=prediction)
+        for game_number in range(self.num_games):
+            
+            if self.verbose:
+                print(f'Simulating game number {game_number+1} of {self.num_games}')
+            
+            processes[game_number].start()
+            
+        for game_number in range(self.num_games):
+            processes[game_number].join()
+            while pipes[game_number][0].poll():
+                game_state, target_value = pipes[game_number][0].recv()
+                game_states.extend(game_state)
+                target_values.extend(target_value)
 
 
-def starter_win_ratio(model: nn.Module, board_size: int, best: bool, num_games: int = 10000):
+        print(len(game_states))
+
+        # for i in range(len(game_states)):
+        #     print(target_values[i])
+        #     Hex(self.board_size, game_states[i]).display_current_state()
+
+        return self.convert_to_ndarray(game_states, target_values)
+
+
+    def main_loop(self):
+        for search_number in range(1, self.total_search_count+1):
+
+            print(f'starting episode number {search_number}')
+
+            game_states, target_values = self.simulate_games()
+
+            dataset_path = f'datasets/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}.npy'
+            
+            with open(dataset_path, 'wb') as f:
+                np.save(f, game_states[:,:,:,:])
+                np.save(f, target_values[:,:])
+            
+            # ------------------- Convolutional neural network -------------------
+            # this part trains the convolutional neural network on the collected game states and target values
+            # the model is trained to predict the target values from the game states
+
+            # Split the data into batches
+            dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
+            data_loader = DataLoader(dataset, batch_size=self.batch_size)
+
+            loss_history = []
+
+            # Train the model
+            for epoch in range(1, self.num_epochs+1):
+                for i, (data, target) in enumerate(data_loader):
+                    data = data.permute(0, 3, 1, 2).to(self.device)
+                    target = target.to(self.device)
+
+                    output = self.model(data)
+                    loss = self.loss_fn(output, target)
+
+                    # Backward and optimize
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    loss_history.append(float(loss))
+                    self.optimizer.step()
+
+                    if i % self.log_interval == 0:
+                        print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                            epoch, i * self.batch_size, len(data_loader.dataset),
+                            100. * i / len(data_loader), loss.item()))
+
+            plt.plot(list(range(len(loss_history))), loss_history)
+            plt.title('Loss during training')
+            plt.xlabel('Batch')
+            plt.ylabel('Loss')
+            plt.show()
+
+            # Test the agent
+            game: GameInterface = Hex(self.board_size, current_black_player=False)
+            test_agent = PolicyAgent(self.board_size, self.model, 0.0)
+
+            while not game.is_final_state():
+                board, black_to_play = game.get_state(False)
+                action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = self.verbose)
+                game.display_current_state()
+                game.perform_action(action)
+
+
+def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_games: int = 10000):
     """
     Plays the model against itself num_games times
     Returns how often the model won as black
@@ -265,8 +212,7 @@ def starter_win_ratio(model: nn.Module, board_size: int, best: bool, num_games: 
 
         while not game.is_final_state():
             board, black_to_play = game.get_state(False)
-            action = calculate_action(model, board_size, board, play_as_black=black_to_play, 
-                                      legal_actions=game.get_legal_acions(), best=best)
+            action = PolicyAgent(board_size, model, epsilon).select_action(board, black_to_play, game.get_legal_acions())
             game.perform_action(action)
         
         # The final_state_reward is 1 if black won, and 0 if red won
@@ -284,8 +230,9 @@ def starter_win_ratio(model: nn.Module, board_size: int, best: bool, num_games: 
 # Search parameters
 board_size = 3
 exploration_weight = 1.0
-search_iterations = 20*board_size**2
-num_games = 50
+epsilon = 1.0
+search_iterations = 2000 # 20*board_size**2
+num_games = 10
 
 total_search_count = 10
 
@@ -293,7 +240,7 @@ total_search_count = 10
 learning_rate = 1e-3
 l2_regularization = 1e-4 # Set to 0 for no regularization
 batch_size = 32
-num_epochs = 10
+num_epochs = 1
 log_interval = 1
 # --------------------------------------------
 
@@ -313,74 +260,74 @@ criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
 
 
-# with open('3by3_500iter_100_games.npy', 'rb') as f:
-#     game_states: np.ndarray = np.load(f)
-#     target_values: np.ndarray = np.load(f)
+with open('datasets/3by3_2000iter_1.npy', 'rb') as f:
+    game_states: np.ndarray = np.load(f)
+    target_values: np.ndarray = np.load(f)
 
 # for i in range(game_states.shape[0]):
 #     print(target_values[i,:].reshape((board_size, board_size)))
 #     Hex(board_size, game_states[i,:,:,:]).display_current_state()
 
+dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
+data_loader = DataLoader(dataset, batch_size=batch_size)
+
+loss_history = []
+
+# Train the model
+for epoch in range(1, num_epochs+1):
+    for i, (data, target) in enumerate(data_loader):
+
+        data = data.permute(0, 3, 1, 2).to(device)
+        target = target.to(device)
+
+        output = model(data)
+        loss = criterion(output, target)
+
+        # Backward and optimize
+        optimizer.zero_grad()
+        loss.backward()
+        loss_history.append(float(loss))
+        optimizer.step()
+        # with torch.no_grad():
+        #     for i in range(data.shape[0]):
+        #         print('actual', np.array(target[i,:].cpu()).reshape((board_size, board_size)))
+        #         print('predic', np.array(output[i,:].cpu()).reshape((board_size, board_size)))
+        #         Hex(board_size, np.array(data[i,:,:,:].permute(1,2,0).cpu(), dtype=np.bool_)).display_current_state()
+
+        if i % log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, i * batch_size, len(data_loader.dataset),
+                100. * i / len(data_loader), loss.item()))
+
+plt.plot(list(range(len(loss_history))), loss_history)
+plt.title('Loss during training')
+plt.xlabel('Batch')
+plt.ylabel('Loss')
+plt.show()
+
+# Test the agent
+game: GameInterface = Hex(board_size, current_black_player=False)
+test_agent = PolicyAgent(board_size, model, 0.0)
+
+while not game.is_final_state():
+    board, black_to_play = game.get_state(False)
+    action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = True)
+    game.display_current_state()
+    game.perform_action(action)
+
+
 
 # --------------- Main RL loop ---------------
 
-for search_number in range(1, total_search_count+1):
 
-    print(f'starting episode number {search_number}')
+reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, 
+                                               search_iterations, num_games, total_search_count, 
+                                               batch_size, num_epochs, log_interval, loss_fn=criterion, 
+                                               optimizer=optimizer, model=model, verbose=True, initial_replay_buffer=None)
 
-    game_states, target_values = simulate_games(model, board_size, exploration_weight, search_iterations, num_games, verbose=True)
+reinforcement_learning.main_loop()
 
-    dataset_path = f'datasets/{board_size}by{board_size}_{search_iterations}iter_{search_number}.npy'
-    
-    with open(dataset_path, 'wb') as f:
-        np.save(f, game_states[0,:,:,:])
-        np.save(f, target_values[0,:])
-    
-    # ------------------- Convolutional neural network -------------------
-    # this part trains the convolutional neural network on the collected game states and target values
-    # the model is trained to predict the target values from the game states
-
-    # Split the data into batches
-    dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
-    data_loader = DataLoader(dataset, batch_size=batch_size)
-
-    loss_history = []
-
-    # Train the model
-    for epoch in range(1, num_epochs+1):
-        for i, (data, target) in enumerate(data_loader):
-            data = data.permute(0, 3, 1, 2).to(device)
-            target = target.to(device)
-
-            output = model(data)
-            loss = criterion(output, target)
-
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            loss_history.append(float(loss))
-            optimizer.step()
-
-            if i % log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, i * batch_size, len(data_loader.dataset),
-                    100. * i / len(data_loader), loss.item()))
-
-    plt.plot(list(range(len(loss_history))), loss_history)
-    plt.title('Loss during training')
-    plt.xlabel('Batch')
-    plt.ylabel('Loss')
-    plt.show()
-
-    # Test the agent
-    game: GameInterface = Hex(board_size, current_black_player=False)
-
-    while not game.is_final_state():
-        board, black_to_play = game.get_state(False)
-        action = calculate_action(model, board_size, board, play_as_black=black_to_play, 
-                                legal_actions=game.get_legal_acions(), best=True, verbose=True)
-        game.display_current_state()
-        game.perform_action(action)
+model = reinforcement_learning.model
 
 # Save the model checkpoint
 torch.save(model.state_dict(), 'model.pt')
@@ -392,8 +339,7 @@ game: GameInterface = Hex(board_size, current_black_player=False)
 
 while not game.is_final_state():
     board, black_to_play = game.get_state(False)
-    action = calculate_action(model, board_size, board, play_as_black=black_to_play, 
-                            legal_actions=game.get_legal_acions(), best=True, verbose=True)
+    action = PolicyAgent(board_size, model, 0.0).select_action(board, black_to_play, game.get_legal_acions())
     game.display_current_state()
     game.perform_action(action)
 
