@@ -58,7 +58,7 @@ class TOPP():
             print("-------------------------------------------------")
             for j in range(len(self.agents)):
                 if i != j:
-                    print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games):.2f}%")
+                    print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games)*100:.1f}%")
 
 # class TestTOPP():
 #     def __init__(self) -> None:
