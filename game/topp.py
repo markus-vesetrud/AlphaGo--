@@ -23,7 +23,7 @@ class TOPP():
         of the row agent playing as black against the column agent playing as red.
         """
         for i in range(len(self.agents)):
-            for j in range(i, len(self.agents)):
+            for j in range(len(self.agents)):
                 if i != j:
                     agent1 = self.agents[i]
                     agent2 = self.agents[j]
@@ -44,7 +44,7 @@ class TOPP():
                             game.perform_action(action)
                         
                         # update scores
-                        self.scores[i, j] += game.get_winner()
+                        self.scores[i, j] += game.get_final_state_reward()
                         
         return self.scores / self.number_of_games
 
