@@ -14,15 +14,17 @@ from agent import PolicyAgent
 
 
 class ReinforcementLearning():
-    def __init__(self, board_size: int, exploration_weight: float, epsilon: float, 
+    def __init__(self, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
                  search_iterations: int, num_games: int, total_search_count: int,
-                 batch_size: int, num_epochs: int, log_interval: int,
+                 batch_size: int, num_epochs: int, log_interval: int, save_interval: int,
                  loss_fn, optimizer, model: nn.Module,
-                 verbose: bool, initial_replay_buffer: np.ndarray) -> None:
+                 verbose: bool, replay_buffer_max_length: int, 
+                 initial_replay_buffer_state: np.ndarray = None, initial_replay_buffer_target: np.ndarray = None) -> None:
         
         self.board_size = board_size
         self.exploration_weight = exploration_weight
         self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
         self.search_iterations = search_iterations
         self.num_games = num_games
         self.total_search_count = total_search_count
@@ -30,6 +32,7 @@ class ReinforcementLearning():
         self.batch_size = batch_size
         self.num_epochs = num_epochs
         self.log_interval = log_interval
+        self.save_interval = save_interval
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -37,17 +40,42 @@ class ReinforcementLearning():
         self.model.to(self.device)
         
         self.verbose = verbose
-        self.replay_buffer = initial_replay_buffer
+        
+        self.replay_buffer_max_length = replay_buffer_max_length
+        if initial_replay_buffer_state is None:
+            assert initial_replay_buffer_target is None
+            self.replay_buffer_state = np.zeros(shape=(0, self.board_size, self.board_size, 2), dtype=np.float32)
+            self.replay_buffer_target = np.zeros(shape=(0, self.board_size**2), dtype=np.float32)
+        else:
+            assert initial_replay_buffer_state.shape[0] == initial_replay_buffer_target.shape[0]
+            assert initial_replay_buffer_state.shape[1] == initial_replay_buffer_state.shape[2] == self.board_size
+            assert initial_replay_buffer_state.shape[3] == 2
+            assert initial_replay_buffer_target.shape[1] == self.board_size**2
+            self.replay_buffer_state = initial_replay_buffer_state
+            self.replay_buffer_target = initial_replay_buffer_target
 
-    def convert_to_ndarray(self, game_states: list[np.ndarray], target_values: list[np.ndarray]) -> tuple[np.ndarray]:
-        new_game_states = np.zeros(shape=(len(game_states), self.board_size, self.board_size, 2), dtype=np.float32)
-        new_target_values = np.zeros(shape=(len(target_values), self.board_size**2), dtype=np.float32)
+    
+    def update_replay_buffer(self, game_states: list[np.ndarray], target_values: list[np.ndarray]) -> tuple[np.ndarray]:
+        available_spots = self.replay_buffer_max_length - self.replay_buffer_state.shape[0]
+        cases_to_remove = max(0, len(game_states) - available_spots)
+        cases_to_add = len(game_states) - cases_to_remove
 
-        for i in range(len(game_states)):
-            new_game_states[i,:,:,:] = game_states[i]
-            new_target_values[i,:] = target_values[i]
-            
-        return new_game_states, new_target_values
+
+        # Randomly remove as many spots as needed from the array
+        indices_to_remove = np.arange(self.replay_buffer_state.shape[0])
+        indices_to_remove = np.random.choice(a=indices_to_remove, size=cases_to_remove)
+
+        # Add new cases without replacing
+        for i in range(cases_to_add):
+            self.replay_buffer_state = np.append(self.replay_buffer_state, game_states[i][np.newaxis,:,:,:], axis=0)
+            self.replay_buffer_target = np.append(self.replay_buffer_target, target_values[i][np.newaxis,:], axis=0)
+
+        # Replace states
+        for i in range(cases_to_remove):
+            remove_index = indices_to_remove[i]
+            self.replay_buffer_state[remove_index,:,:,:] = game_states[i+cases_to_add]
+            self.replay_buffer_target[remove_index,:] = target_values[i+cases_to_add]
+
 
     def simulate_game(self, send_connection) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -128,31 +156,36 @@ class ReinforcementLearning():
         #     print(target_values[i])
         #     Hex(self.board_size, game_states[i]).display_current_state()
 
-        return self.convert_to_ndarray(game_states, target_values)
+        return (game_states, target_values)
 
 
     def main_loop(self):
-        for search_number in range(1, self.total_search_count+1):
+        for search_number in range(self.total_search_count):
 
             print(f'starting episode number {search_number}')
 
             game_states, target_values = self.simulate_games()
 
-            dataset_path = f'datasets/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}.npy'
-            
-            with open(dataset_path, 'wb') as f:
-                np.save(f, game_states[:,:,:,:])
-                np.save(f, target_values[:,:])
+            self.update_replay_buffer(game_states, target_values)
+
+            if search_number % self.save_interval == 0:
+                dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+                model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+                
+                with open(dataset_path, 'wb') as f:
+                    np.save(f, self.replay_buffer_state)
+                    np.save(f, self.replay_buffer_target)
+                torch.save(self.model.state_dict(), model_path)
             
             # ------------------- Convolutional neural network -------------------
             # this part trains the convolutional neural network on the collected game states and target values
             # the model is trained to predict the target values from the game states
 
             # Split the data into batches
-            dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
+            dataset = TensorDataset(torch.from_numpy(self.replay_buffer_state), torch.from_numpy(self.replay_buffer_target))
             data_loader = DataLoader(dataset, batch_size=self.batch_size)
 
-            loss_history = []
+            # loss_history = []
 
             # Train the model
             for epoch in range(1, self.num_epochs+1):
@@ -166,29 +199,31 @@ class ReinforcementLearning():
                     # Backward and optimize
                     self.optimizer.zero_grad()
                     loss.backward()
-                    loss_history.append(float(loss))
+                    # loss_history.append(float(loss))
                     self.optimizer.step()
 
                     if i % self.log_interval == 0:
                         print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                             epoch, i * self.batch_size, len(data_loader.dataset),
                             100. * i / len(data_loader), loss.item()))
+            
+            self.epsilon *= self.epsilon_decay
 
-            plt.plot(list(range(len(loss_history))), loss_history)
-            plt.title('Loss during training')
-            plt.xlabel('Batch')
-            plt.ylabel('Loss')
-            plt.show()
+            # plt.plot(list(range(len(loss_history))), loss_history)
+            # plt.title('Loss during training')
+            # plt.xlabel('Batch')
+            # plt.ylabel('Loss')
+            # plt.show()
 
             # Test the agent
-            game: GameInterface = Hex(self.board_size, current_black_player=False)
-            test_agent = PolicyAgent(self.board_size, self.model, 0.0)
+            # game: GameInterface = Hex(self.board_size, current_black_player=False)
+            # test_agent = PolicyAgent(self.board_size, self.model, 0.0)
 
-            while not game.is_final_state():
-                board, black_to_play = game.get_state(False)
-                action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = self.verbose)
-                game.display_current_state()
-                game.perform_action(action)
+            # while not game.is_final_state():
+            #     board, black_to_play = game.get_state(False)
+            #     action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = self.verbose)
+            #     game.display_current_state()
+            #     game.perform_action(action)
 
 
 def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_games: int = 10000):
@@ -227,13 +262,15 @@ def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_gam
 
 # -------------- Hyperparameters -------------
 # Search parameters
-board_size = 3
+board_size = 7
 exploration_weight = 1.0
-epsilon = 0.5
-search_iterations = 20*board_size**2
-num_games = 50
+epsilon = 1.0
+epsilon_decay = 0.95
+search_iterations = 4*board_size**2
+num_games = 5
+replay_buffer_max_length = 2500
 
-total_search_count = 10
+total_search_count = 50
 
 # Policy network parameters
 learning_rate = 1e-3
@@ -241,13 +278,11 @@ l2_regularization = 1e-4 # Set to 0 for no regularization
 batch_size = 32
 num_epochs = 20
 log_interval = 1
+save_interval = 5
 # --------------------------------------------
 
 
 # ------------- Other Variables --------------
-
-# Device configuration
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Model
 model = LinearNeuralNet(board_size)
@@ -259,70 +294,16 @@ criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
 
 
-# with open('datasets/3by3_2000iter_1.npy', 'rb') as f:
-#     game_states: np.ndarray = np.load(f)
-#     target_values: np.ndarray = np.load(f)
-
-# for i in range(game_states.shape[0]):
-#     print(target_values[i,:].reshape((board_size, board_size)))
-#     Hex(board_size, game_states[i,:,:,:]).display_current_state()
-
-# dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
-# data_loader = DataLoader(dataset, batch_size=batch_size)
-
-# loss_history = []
-
-# # Train the model
-# for epoch in range(1, num_epochs+1):
-#     for i, (data, target) in enumerate(data_loader):
-
-#         data = data.permute(0, 3, 1, 2).to(device)
-#         target = target.to(device)
-
-#         output = model(data)
-#         loss = criterion(output, target)
-
-#         # Backward and optimize
-#         optimizer.zero_grad()
-#         loss.backward()
-#         loss_history.append(float(loss))
-#         optimizer.step()
-#         # with torch.no_grad():
-#         #     for i in range(data.shape[0]):
-#         #         print('actual', np.array(target[i,:].cpu()).reshape((board_size, board_size)))
-#         #         print('predic', np.array(output[i,:].cpu()).reshape((board_size, board_size)))
-#         #         Hex(board_size, np.array(data[i,:,:,:].permute(1,2,0).cpu(), dtype=np.bool_)).display_current_state()
-
-#         if i % log_interval == 0:
-#             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-#                 epoch, i * batch_size, len(data_loader.dataset),
-#                 100. * i / len(data_loader), loss.item()))
-
-# plt.plot(list(range(len(loss_history))), loss_history)
-# plt.title('Loss during training')
-# plt.xlabel('Batch')
-# plt.ylabel('Loss')
-# plt.show()
-
-# # Test the agent
-# game: GameInterface = Hex(board_size, current_black_player=True)
-# test_agent = PolicyAgent(board_size, model, 0.0)
-
-# while not game.is_final_state():
-#     board, black_to_play = game.get_state(False)
-#     action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = True)
-#     game.display_current_state()
-#     game.perform_action(action)
-
 
 
 # --------------- Main RL loop ---------------
 
 
-reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, 
+reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, epsilon_decay,
                                                search_iterations, num_games, total_search_count, 
-                                               batch_size, num_epochs, log_interval, loss_fn=criterion, 
-                                               optimizer=optimizer, model=model, verbose=True, initial_replay_buffer=None)
+                                               batch_size, num_epochs, log_interval, save_interval, loss_fn=criterion, 
+                                               optimizer=optimizer, model=model, verbose=True, 
+                                               replay_buffer_max_length=replay_buffer_max_length)
 
 reinforcement_learning.main_loop()
 
