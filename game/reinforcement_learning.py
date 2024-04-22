@@ -158,6 +158,14 @@ class ReinforcementLearning():
 
         return (game_states, target_values)
 
+    def save(self, search_number):
+        dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+        model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+        
+        with open(dataset_path, 'wb') as f:
+            np.save(f, self.replay_buffer_state)
+            np.save(f, self.replay_buffer_target)
+        torch.save(self.model.state_dict(), model_path)
 
     def main_loop(self):
         for search_number in range(self.total_search_count):
@@ -169,13 +177,7 @@ class ReinforcementLearning():
             self.update_replay_buffer(game_states, target_values)
 
             if search_number % self.save_interval == 0:
-                dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
-                model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
-                
-                with open(dataset_path, 'wb') as f:
-                    np.save(f, self.replay_buffer_state)
-                    np.save(f, self.replay_buffer_target)
-                torch.save(self.model.state_dict(), model_path)
+                self.save(search_number)
             
             # ------------------- Convolutional neural network -------------------
             # this part trains the convolutional neural network on the collected game states and target values
@@ -224,7 +226,8 @@ class ReinforcementLearning():
             #     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
             #     game.display_current_state()
             #     game.perform_action(action)
-
+            
+        self.save(self.total_search_count)
 
 def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_games: int = 10000):
     """
