@@ -62,7 +62,7 @@ class ReinforcementLearning():
 
         # Create the root node with no parent, starting with black to play
         _, black_to_play = game.get_state(False) # black_to_play is always True in this implementation
-        root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_acions(True), game.get_action_count())
+        root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_actions(True), game.get_action_count())
 
         # Play a game
         while not game.is_final_state():
@@ -186,7 +186,7 @@ class ReinforcementLearning():
 
             while not game.is_final_state():
                 board, black_to_play = game.get_state(False)
-                action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = self.verbose)
+                action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
                 game.display_current_state()
                 game.perform_action(action)
 
@@ -211,7 +211,7 @@ def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_gam
 
         while not game.is_final_state():
             board, black_to_play = game.get_state(False)
-            action = PolicyAgent(board_size, model, epsilon).select_action(board, black_to_play, game.get_legal_acions())
+            action = PolicyAgent(board_size, model, epsilon).select_action(board, black_to_play, game.get_legal_actions())
             game.perform_action(action)
         
         # The final_state_reward is 1 if black won, and 0 if red won
@@ -310,7 +310,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=
 
 # while not game.is_final_state():
 #     board, black_to_play = game.get_state(False)
-#     action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = True)
+#     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = True)
 #     game.display_current_state()
 #     game.perform_action(action)
 
@@ -338,7 +338,7 @@ game: GameInterface = Hex(board_size, current_black_player=False)
 
 while not game.is_final_state():
     board, black_to_play = game.get_state(False)
-    action = PolicyAgent(board_size, model, 0.0).select_action(board, black_to_play, game.get_legal_acions())
+    action = PolicyAgent(board_size, model, 0.0).select_action(board, black_to_play, game.get_legal_actions())
     game.display_current_state()
     game.perform_action(action)
 

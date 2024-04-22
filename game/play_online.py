@@ -72,7 +72,7 @@ class MyClient(ActorClient):
         game = Hex(board_size, new_arr, black_to_play)
 
         board, _ = game.get_state(False)
-        legal_actions = game.get_legal_acions()
+        legal_actions = game.get_legal_actions()
         
         action = actor.select_action(board, black_to_play, legal_actions) # Your logic
         print("Action: ", action)

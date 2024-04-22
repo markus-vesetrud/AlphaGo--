@@ -19,7 +19,7 @@ class GameInterface:
         pass
 
 
-    def get_legal_acions(self, flatten: bool = True) -> list[int | tuple[int]]:
+    def get_legal_actions(self, flatten: bool = True) -> list[int | tuple[int]]:
         """
         returns a list of indices representing the action corresponding to that board position, 
         if flatten is true, instead each action is represented as a tuple of integers

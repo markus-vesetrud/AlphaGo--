@@ -33,7 +33,7 @@ class Nim(GameInterface):
         """
         return self.nbr_of_sticks == 0
 
-    def get_legal_acions(self, flatten: bool = True) -> np.ndarray:
+    def get_legal_actions(self, flatten: bool = True) -> np.ndarray:
         return [i for i in range(min(self.nbr_of_sticks, self.range_of_pick))]
         # return [i <= self.nbr_of_sticks for i in range(1, self.range_of_pick + 1)]
 
@@ -55,8 +55,8 @@ class Nim(GameInterface):
 
         # action = np.nonzero(action)[0][0] + 1
 
-        if action not in self.get_legal_acions():
-            raise ValueError(f"Action not in {self.get_legal_acions()}")
+        if action not in self.get_legal_actions():
+            raise ValueError(f"Action not in {self.get_legal_actions()}")
 
         self.nbr_of_sticks -= action + 1
         self.player_1_turn = not self.player_1_turn
@@ -75,10 +75,10 @@ if __name__ == "__main__":
 
     while(nim.is_final_state() == 0):
         nim.display_current_state()
-        print(nim.get_legal_acions())
+        print(nim.get_legal_actions())
         action = int(input("Choose a number of sticks to pick: "))
         # nim.perform_action(np.array([i == action for i in range(1, nim.range_of_pick + 1)]))
         nim.perform_action(action)
 
-    print(nim.get_legal_acions())
+    print(nim.get_legal_actions())
     print("Player", 1 if nim.is_final_state() == 1 else 2, "wins!")
