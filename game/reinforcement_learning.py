@@ -34,6 +34,7 @@ class ReinforcementLearning():
         self.loss_fn = loss_fn
         self.optimizer = optimizer
         self.model = model
+        self.model.to(self.device)
         
         self.verbose = verbose
         self.replay_buffer = initial_replay_buffer
@@ -109,13 +110,11 @@ class ReinforcementLearning():
         processes = [multiprocessing.Process(target=self.simulate_game, args=(pipes[i][1], )) for i in range(self.num_games)]
 
         for game_number in range(self.num_games):
-            
-            if self.verbose:
-                print(f'Simulating game number {game_number+1} of {self.num_games}')
-            
             processes[game_number].start()
             
         for game_number in range(self.num_games):
+            if self.verbose:
+                print(f'Simulating game number {game_number+1} of {self.num_games}')
             processes[game_number].join()
             while pipes[game_number][0].poll():
                 game_state, target_value = pipes[game_number][0].recv()
@@ -230,9 +229,9 @@ def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_gam
 # Search parameters
 board_size = 3
 exploration_weight = 1.0
-epsilon = 1.0
-search_iterations = 2000 # 20*board_size**2
-num_games = 10
+epsilon = 0.5
+search_iterations = 20*board_size**2
+num_games = 50
 
 total_search_count = 10
 
@@ -240,7 +239,7 @@ total_search_count = 10
 learning_rate = 1e-3
 l2_regularization = 1e-4 # Set to 0 for no regularization
 batch_size = 32
-num_epochs = 1
+num_epochs = 20
 log_interval = 1
 # --------------------------------------------
 
@@ -260,60 +259,60 @@ criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
 
 
-with open('datasets/3by3_2000iter_1.npy', 'rb') as f:
-    game_states: np.ndarray = np.load(f)
-    target_values: np.ndarray = np.load(f)
+# with open('datasets/3by3_2000iter_1.npy', 'rb') as f:
+#     game_states: np.ndarray = np.load(f)
+#     target_values: np.ndarray = np.load(f)
 
 # for i in range(game_states.shape[0]):
 #     print(target_values[i,:].reshape((board_size, board_size)))
 #     Hex(board_size, game_states[i,:,:,:]).display_current_state()
 
-dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
-data_loader = DataLoader(dataset, batch_size=batch_size)
+# dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
+# data_loader = DataLoader(dataset, batch_size=batch_size)
 
-loss_history = []
+# loss_history = []
 
-# Train the model
-for epoch in range(1, num_epochs+1):
-    for i, (data, target) in enumerate(data_loader):
+# # Train the model
+# for epoch in range(1, num_epochs+1):
+#     for i, (data, target) in enumerate(data_loader):
 
-        data = data.permute(0, 3, 1, 2).to(device)
-        target = target.to(device)
+#         data = data.permute(0, 3, 1, 2).to(device)
+#         target = target.to(device)
 
-        output = model(data)
-        loss = criterion(output, target)
+#         output = model(data)
+#         loss = criterion(output, target)
 
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        loss_history.append(float(loss))
-        optimizer.step()
-        # with torch.no_grad():
-        #     for i in range(data.shape[0]):
-        #         print('actual', np.array(target[i,:].cpu()).reshape((board_size, board_size)))
-        #         print('predic', np.array(output[i,:].cpu()).reshape((board_size, board_size)))
-        #         Hex(board_size, np.array(data[i,:,:,:].permute(1,2,0).cpu(), dtype=np.bool_)).display_current_state()
+#         # Backward and optimize
+#         optimizer.zero_grad()
+#         loss.backward()
+#         loss_history.append(float(loss))
+#         optimizer.step()
+#         # with torch.no_grad():
+#         #     for i in range(data.shape[0]):
+#         #         print('actual', np.array(target[i,:].cpu()).reshape((board_size, board_size)))
+#         #         print('predic', np.array(output[i,:].cpu()).reshape((board_size, board_size)))
+#         #         Hex(board_size, np.array(data[i,:,:,:].permute(1,2,0).cpu(), dtype=np.bool_)).display_current_state()
 
-        if i % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, i * batch_size, len(data_loader.dataset),
-                100. * i / len(data_loader), loss.item()))
+#         if i % log_interval == 0:
+#             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+#                 epoch, i * batch_size, len(data_loader.dataset),
+#                 100. * i / len(data_loader), loss.item()))
 
-plt.plot(list(range(len(loss_history))), loss_history)
-plt.title('Loss during training')
-plt.xlabel('Batch')
-plt.ylabel('Loss')
-plt.show()
+# plt.plot(list(range(len(loss_history))), loss_history)
+# plt.title('Loss during training')
+# plt.xlabel('Batch')
+# plt.ylabel('Loss')
+# plt.show()
 
-# Test the agent
-game: GameInterface = Hex(board_size, current_black_player=False)
-test_agent = PolicyAgent(board_size, model, 0.0)
+# # Test the agent
+# game: GameInterface = Hex(board_size, current_black_player=True)
+# test_agent = PolicyAgent(board_size, model, 0.0)
 
-while not game.is_final_state():
-    board, black_to_play = game.get_state(False)
-    action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = True)
-    game.display_current_state()
-    game.perform_action(action)
+# while not game.is_final_state():
+#     board, black_to_play = game.get_state(False)
+#     action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = True)
+#     game.display_current_state()
+#     game.perform_action(action)
 
 
 

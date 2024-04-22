@@ -9,11 +9,10 @@ class LinearNeuralNet(torch.nn.Module):
     def __init__(self, board_size: int):
         super(LinearNeuralNet, self).__init__()
         input_size = 2*board_size**2
-        self.l1 = nn.Linear(2*board_size**2, input_size*2)
-        self.l2 = nn.Linear(input_size*2, input_size*4)
-        self.l3 = nn.Linear(input_size*4, input_size*2)
-        self.l4 = nn.Linear(input_size*2, input_size//2)
-        self.dropout = nn.Dropout(0.25)
+        self.l1 = nn.Linear(2*board_size**2, input_size*4)
+        self.l2 = nn.Linear(input_size*4, input_size*8)
+        self.l3 = nn.Linear(input_size*8, input_size*4)
+        self.l4 = nn.Linear(input_size*4, input_size//2)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
@@ -21,15 +20,12 @@ class LinearNeuralNet(torch.nn.Module):
         
         x = self.l1(x)
         x = F.relu(x)
-        x = self.dropout(x)
 
         x = self.l2(x)
         x = F.relu(x)
-        x = self.dropout(x)
 
         x = self.l3(x)
         x = F.relu(x)
-        x = self.dropout(x)
 
         x = self.l4(x)
         x = F.softmax(x, dim=1)
