@@ -2,3 +2,5 @@
 /game/__pycache__
 *.npy
 model.pt
+hex_client_23/
+__MACOSX/
