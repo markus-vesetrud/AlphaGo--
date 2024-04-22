@@ -60,28 +60,5 @@ class TOPP():
                 if i != j:
                     print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games)*100:.1f}%")
 
-# class TestTOPP():
-#     def __init__(self) -> None:
-#         self.scores = np.zeros((3, 3))
-#         self.number = 0
 
-#     def test_scores(self, k):
-#         self.scores[0, 1] += k
-#         self.number += 1
-
-#     def visualize_results(self):
-#         print("Black agent\t| Red agent\t| Win percentage of black")
-#         for i in range(3):
-#             print("-------------------------------------------------")
-#             for j in range(3):
-#                 if i != j:
-#                     print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number):.2f}%")
-
-# if __name__ == "__main__":
-#     test = TestTOPP()
-#     test.test_scores(1)
-#     test.test_scores(0)
-#     test.test_scores(1)
-
-#     test.visualize_results()
         
