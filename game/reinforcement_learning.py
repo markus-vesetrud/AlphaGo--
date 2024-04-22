@@ -90,7 +90,7 @@ class ReinforcementLearning():
 
         # Create the root node with no parent, starting with black to play
         _, black_to_play = game.get_state(False) # black_to_play is always True in this implementation
-        root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_acions(True), game.get_action_count())
+        root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_actions(True), game.get_action_count())
 
         # Play a game
         while not game.is_final_state():
@@ -221,7 +221,7 @@ class ReinforcementLearning():
 
             # while not game.is_final_state():
             #     board, black_to_play = game.get_state(False)
-            #     action = test_agent.select_action(board, black_to_play, game.get_legal_acions(), verbose = self.verbose)
+            #     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
             #     game.display_current_state()
             #     game.perform_action(action)
 
@@ -246,7 +246,7 @@ def starter_win_ratio(model: nn.Module, board_size: int, epsilon: float, num_gam
 
         while not game.is_final_state():
             board, black_to_play = game.get_state(False)
-            action = PolicyAgent(board_size, model, epsilon).select_action(board, black_to_play, game.get_legal_acions())
+            action = PolicyAgent(board_size, model, epsilon).select_action(board, black_to_play, game.get_legal_actions())
             game.perform_action(action)
         
         # The final_state_reward is 1 if black won, and 0 if red won
@@ -294,6 +294,61 @@ criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
 
 
+# with open('datasets/3by3_2000iter_1.npy', 'rb') as f:
+#     game_states: np.ndarray = np.load(f)
+#     target_values: np.ndarray = np.load(f)
+
+# for i in range(game_states.shape[0]):
+#     print(target_values[i,:].reshape((board_size, board_size)))
+#     Hex(board_size, game_states[i,:,:,:]).display_current_state()
+
+# dataset = TensorDataset(torch.from_numpy(game_states), torch.from_numpy(target_values))
+# data_loader = DataLoader(dataset, batch_size=batch_size)
+
+# loss_history = []
+
+# # Train the model
+# for epoch in range(1, num_epochs+1):
+#     for i, (data, target) in enumerate(data_loader):
+
+#         data = data.permute(0, 3, 1, 2).to(device)
+#         target = target.to(device)
+
+#         output = model(data)
+#         loss = criterion(output, target)
+
+#         # Backward and optimize
+#         optimizer.zero_grad()
+#         loss.backward()
+#         loss_history.append(float(loss))
+#         optimizer.step()
+#         # with torch.no_grad():
+#         #     for i in range(data.shape[0]):
+#         #         print('actual', np.array(target[i,:].cpu()).reshape((board_size, board_size)))
+#         #         print('predic', np.array(output[i,:].cpu()).reshape((board_size, board_size)))
+#         #         Hex(board_size, np.array(data[i,:,:,:].permute(1,2,0).cpu(), dtype=np.bool_)).display_current_state()
+
+#         if i % log_interval == 0:
+#             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+#                 epoch, i * batch_size, len(data_loader.dataset),
+#                 100. * i / len(data_loader), loss.item()))
+
+# plt.plot(list(range(len(loss_history))), loss_history)
+# plt.title('Loss during training')
+# plt.xlabel('Batch')
+# plt.ylabel('Loss')
+# plt.show()
+
+# # Test the agent
+# game: GameInterface = Hex(board_size, current_black_player=True)
+# test_agent = PolicyAgent(board_size, model, 0.0)
+
+# while not game.is_final_state():
+#     board, black_to_play = game.get_state(False)
+#     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = True)
+#     game.display_current_state()
+#     game.perform_action(action)
+
 
 
 # --------------- Main RL loop ---------------
@@ -319,7 +374,7 @@ game: GameInterface = Hex(board_size, current_black_player=False)
 
 while not game.is_final_state():
     board, black_to_play = game.get_state(False)
-    action = PolicyAgent(board_size, model, 0.0).select_action(board, black_to_play, game.get_legal_acions())
+    action = PolicyAgent(board_size, model, 0.0).select_action(board, black_to_play, game.get_legal_actions())
     game.display_current_state()
     game.perform_action(action)
 

@@ -154,7 +154,7 @@ class MCTreeSearch:
     def sim_default(self):
         while not self.game.is_final_state():
             game_board, black_to_play = self.game.get_state(False)
-            action = self.agent.select_action(game_board, black_to_play, self.game.get_legal_acions())
+            action = self.agent.select_action(game_board, black_to_play, self.game.get_legal_actions())
             self.game.perform_action(action)
 
         return self.game.get_final_state_reward()
@@ -169,7 +169,7 @@ class MCTreeSearch:
             self.game.perform_action(action)
             
             if not current_node.is_action_taken(action):
-                new_leaf_node = MCTreeNode(current_node, action, self.game.is_starting_player_turn(), self.game.get_legal_acions(True), self.game.get_action_count())
+                new_leaf_node = MCTreeNode(current_node, action, self.game.is_starting_player_turn(), self.game.get_legal_actions(True), self.game.get_action_count())
                 current_node.attach_child(new_leaf_node, action)
                 return new_leaf_node
             current_node = current_node.get_child(action)
@@ -211,7 +211,7 @@ if __name__ == '__main__':
     search_iterations = 4000
 
     game_states: list[GameInterface] = [deepcopy(game)]
-    root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_acions(True), game.get_action_count())
+    root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_actions(True), game.get_action_count())
 
     while not game.is_final_state():
         

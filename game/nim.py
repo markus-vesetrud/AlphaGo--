@@ -9,8 +9,6 @@ except ModuleNotFoundError:
 
 class Nim(GameInterface):
     def __init__(self, nbr_of_sticks: list[int], range_of_pick: int) -> None:
-        # super().__init__()
-
         self.nbr_of_sticks = random.randint(nbr_of_sticks[0], nbr_of_sticks[1])
         self.player_1_turn = True # True for player 1, False for player 2
         self.range_of_pick = range_of_pick
@@ -33,9 +31,8 @@ class Nim(GameInterface):
         """
         return self.nbr_of_sticks == 0
 
-    def get_legal_acions(self, flatten: bool = True) -> np.ndarray:
+    def get_legal_actions(self, flatten: bool = True) -> np.ndarray:
         return [i for i in range(min(self.nbr_of_sticks, self.range_of_pick))]
-        # return [i <= self.nbr_of_sticks for i in range(1, self.range_of_pick + 1)]
 
     def get_state(self, flatten: bool = True) -> tuple[np.ndarray, bool]:
         return (self.nbr_of_sticks, self.player_1_turn)
@@ -48,15 +45,8 @@ class Nim(GameInterface):
         print("There are", self.nbr_of_sticks, "sticks left. It is player", 1 if self.player_1_turn else 2, "'s turn.")
 
     def perform_action(self, action: int, flattend_input: bool = True) -> None:
-        # if not (np.sum(action) == 1 and np.sum(np.logical_not(action)) == self.range_of_pick - 1):
-        #     raise ValueError("The action must be a single True and the rest False.")
-        # if np.nonzero(action)[0][0] > self.nbr_of_sticks - 1:
-        #     raise ValueError("Cannot pick more sticks than there are left.")
-
-        # action = np.nonzero(action)[0][0] + 1
-
-        if action not in self.get_legal_acions():
-            raise ValueError(f"Action not in {self.get_legal_acions()}")
+        if action not in self.get_legal_actions():
+            raise ValueError(f"Action not in {self.get_legal_actions()}")
 
         self.nbr_of_sticks -= action + 1
         self.player_1_turn = not self.player_1_turn
@@ -75,10 +65,9 @@ if __name__ == "__main__":
 
     while(nim.is_final_state() == 0):
         nim.display_current_state()
-        print(nim.get_legal_acions())
+        print(nim.get_legal_actions())
         action = int(input("Choose a number of sticks to pick: "))
-        # nim.perform_action(np.array([i == action for i in range(1, nim.range_of_pick + 1)]))
         nim.perform_action(action)
 
-    print(nim.get_legal_acions())
+    print(nim.get_legal_actions())
     print("Player", 1 if nim.is_final_state() == 1 else 2, "wins!")

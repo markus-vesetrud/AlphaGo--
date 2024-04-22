@@ -174,7 +174,7 @@ class Hex(GameInterface):
 
 
 
-    def get_legal_acions(self, flatten: bool = True) -> list[int | tuple[int]]:
+    def get_legal_actions(self, flatten: bool = True) -> list[int | tuple[int]]:
         empty_x_indices, empty_y_indices = np.where((self.__board == np.zeros(shape=(1,1,2), dtype=np.bool_)).all(axis=2))
         result = []
         if flatten:
@@ -341,7 +341,7 @@ if __name__ == '__main__':
 
     # print(hex.get_final_state_reward())
     # print(hex.is_final_state())
-    # print(hex.get_legal_acions())
+    # print(hex.get_legal_actions())
     # hex.display_current_state()
 
     hex: GameInterface = Hex(3)

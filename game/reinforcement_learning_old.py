@@ -53,7 +53,7 @@ for _ in range(num_games):
     game: GameInterface = Hex(board_size)
     board, black_to_play = game.get_state(False)
 
-    root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_acions(True), game.get_action_count())
+    root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_actions(True), game.get_action_count())
 
     # make first move without copies
     mcts = MCTreeSearch(root_node, game, exploration_weight, random_policy=True)
