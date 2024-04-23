@@ -79,9 +79,9 @@ class PolicyAgent(Agent):
         # Set illegal moves to be zero, important that this is done after the flipping above
         prediction = self.__rescale_prediction(prediction, legal_actions)
 
-        if verbose:
-            print(prediction.reshape((self.board_size, self.board_size)))
-            print()
+        # if verbose:
+        #     print(prediction.reshape((self.board_size, self.board_size)))
+        #     print()
 
         # Return the best prediction
         return prediction.argmax()

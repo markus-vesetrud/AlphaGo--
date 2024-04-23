@@ -15,8 +15,11 @@
 - [ ] Test adam optimizer with 128 batch size
 - [x] Maybe apply softmax to mcts output
 - [x] Use the network in MCTS
-- [ ] Change default policy to be epsilon greedy
-- [ ] Deal with the ocilating behaviour by adding a replay buffer
+- [x] Change default policy to be epsilon greedy
+- [x] Deal with the ocilating behaviour by adding a replay buffer
+- [ ] Check epsilon greedy VS proportional output
+- [ ] Check no board flipping
+- [ ] Check different way of swapping out replay buffer
 
 ## Dependencies
 

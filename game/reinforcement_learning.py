@@ -280,11 +280,11 @@ if __name__ == '__main__':
     # Search parameters
     board_size = 4
     exploration_weight = 1.0
-    epsilon = 0.6
-    epsilon_decay = 0.993
+    epsilon = 0.8
+    epsilon_decay = 0.99
     search_iterations = 10*board_size**2
     num_games = 10
-    replay_buffer_max_length = 1600
+    replay_buffer_max_length = 3000
     # Set to None to start from scratch
     dataset_path = None # f'checkpoints/7by7_490iter_45_replay_buffer.npy'
     model_path   = None # f'checkpoints/7by7_490iter_45_model.pt'
