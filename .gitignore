@@ -1,8 +1,8 @@
 /__pycache__
 /game/__pycache__
-*.npy
 model.pt
 game/hex_client_23/*
 #!game/hex_client_23/ActorClient.py
 __MACOSX/
 checkpoints/
+checkpoints_old_and_bad/

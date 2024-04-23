@@ -230,6 +230,8 @@ class ReinforcementLearning():
             # Test the agent
             # game: GameInterface = Hex(self.board_size, current_black_player=False)
             # test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
+            
+            test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
 
             # while not game.is_final_state():
             #     board, black_to_play = game.get_state(False)
@@ -278,18 +280,18 @@ if __name__ == '__main__':
 
     # -------------- Hyperparameters -------------
     # Search parameters
-    board_size = 4
+    board_size = 7
     exploration_weight = 1.0
-    epsilon = 0.6
-    epsilon_decay = 0.993
+    epsilon = 0.95
+    epsilon_decay = 0.8
     search_iterations = 10*board_size**2
     num_games = 10
-    replay_buffer_max_length = 1600
+    replay_buffer_max_length = 5000
     # Set to None to start from scratch
-    dataset_path = None # f'checkpoints/7by7_490iter_45_replay_buffer.npy'
-    model_path   = None # f'checkpoints/7by7_490iter_45_model.pt'
+    dataset_path = f'checkpoints/7by7_490iter_25_replay_buffer.npy'
+    model_path   = f'checkpoints/7by7_490iter_25_model.pt'
 
-    start_epoch = 0
+    start_epoch = 25
     total_search_count = 100
 
     # Policy network parameters
