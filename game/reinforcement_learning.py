@@ -82,7 +82,7 @@ class ReinforcementLearning():
             self.replay_buffer_target[remove_index,:] = target_values[i+cases_to_add]
 
 
-    def simulate_game(self, send_connection) -> tuple[np.ndarray, np.ndarray]:
+    def __simulate_game(self, send_connection) -> tuple[np.ndarray, np.ndarray]:
         """
         Simulates a single game and returns the game states and target values (probabilities of actions)
 
@@ -128,7 +128,7 @@ class ReinforcementLearning():
             # game.display_current_state()
     
 
-    def simulate_games(self) -> tuple[np.ndarray, np.ndarray]:
+    def __simulate_games(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Simulates a seires of games and returns the game states and target values (probabilities of actions)
 
@@ -140,7 +140,7 @@ class ReinforcementLearning():
         target_values = []
 
         pipes = [torch.multiprocessing.Pipe() for i in range(self.num_games)]
-        processes = [torch.multiprocessing.Process(target=self.simulate_game, args=(pipes[i][1], )) for i in range(self.num_games)]
+        processes = [torch.multiprocessing.Process(target=self.__simulate_game, args=(pipes[i][1], )) for i in range(self.num_games)]
 
         for game_number in range(self.num_games):
             processes[game_number].start()
@@ -153,6 +153,65 @@ class ReinforcementLearning():
                 game_state, target_value = pipes[game_number][0].recv()
                 game_states.extend(game_state)
                 target_values.extend(target_value)
+
+
+        print(len(game_states))
+
+        # for i in range(len(game_states)):
+        #     print(target_values[i])
+        #     Hex(self.board_size, game_states[i]).display_current_state()
+
+        return (game_states, target_values)
+    
+    def simulate_games_single_process(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Simulates a seires of games and returns the game states and target values (probabilities of actions)
+
+        All moves are saved in two configurations (original and 180 degree rotated)
+        If a red move is simulated, the saved board and target value is flippes to the perspective of the black player
+        """
+
+        game_states = []
+        target_values = []
+
+        for game_number in range(self.num_games):
+            print(f'Simulating game number {game_number+1} of {self.num_games}')
+
+            agent = PolicyAgent(self.board_size, self.model, self.device, self.epsilon)
+            game: GameInterface = Hex(self.board_size)
+
+            # Create the root node with no parent, starting with black to play
+            _, black_to_play = game.get_state(False) # black_to_play is always True in this implementation
+            root_node = MCTreeNode(None, -1, black_to_play, game.get_legal_actions(True), game.get_action_count())
+
+            # Play a game
+            while not game.is_final_state():
+                
+                mcts = MCTreeSearch(root_node, game, self.exploration_weight, agent)
+
+                # This is what takes all the time
+                mcts.UCTSearch(self.search_iterations)
+
+                current_game_board, current_black_to_play = game.get_state(False)
+
+                new_game_states, new_target_values = create_training_cases(self.board_size, current_game_board, current_black_to_play, 
+                                                                mcts.root.action_values, mcts.root.legal_actions)
+
+                # Add to the training cases
+                game_states.extend(new_game_states)
+                target_values.extend(new_target_values)
+                
+                # Find the best action and the child in the tree corresponding to that action
+                # Make that child the new root and perform the action
+                best_action = mcts.root.best_action()
+                root_node = mcts.root.get_child(best_action)
+
+                # Deletes the link to the parent, and thus python will 
+                # delete the whole tree except the subtree of this node
+                root_node.make_root() 
+
+                game.perform_action(best_action)
+                # game.display_current_state()
 
 
         print(len(game_states))
@@ -177,7 +236,7 @@ class ReinforcementLearning():
 
             print(f'starting episode number {search_number}')
 
-            game_states, target_values = self.simulate_games()
+            game_states, target_values = self.simulate_games_single_process()
 
             self.update_replay_buffer(game_states, target_values)
 
@@ -192,7 +251,7 @@ class ReinforcementLearning():
             dataset = TensorDataset(torch.from_numpy(self.replay_buffer_state), torch.from_numpy(self.replay_buffer_target))
             data_loader = DataLoader(dataset, batch_size=self.batch_size)
 
-            # loss_history = []
+            loss_history = []
 
             # Train the model
             for epoch in range(1, self.num_epochs+1):
@@ -206,7 +265,7 @@ class ReinforcementLearning():
                     # Backward and optimize
                     self.optimizer.zero_grad()
                     loss.backward()
-                    # loss_history.append(float(loss))
+                    loss_history.append(float(loss))
                     self.optimizer.step()
 
                     if i % self.log_interval == 0:
@@ -216,26 +275,26 @@ class ReinforcementLearning():
             
             self.epsilon *= self.epsilon_decay
 
-            game: GameInterface = Hex(self.board_size, current_black_player=False)
-            test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
-            board, black_to_play = game.get_state(False)
-            print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose))
+            # game: GameInterface = Hex(self.board_size, current_black_player=True)
+            # test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
+            # board, black_to_play = game.get_state(False)
+            # print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose))
 
-            # plt.plot(list(range(len(loss_history))), loss_history)
-            # plt.title('Loss during training')
-            # plt.xlabel('Batch')
-            # plt.ylabel('Loss')
-            # plt.show()
+            plt.plot(list(range(len(loss_history))), loss_history)
+            plt.title('Loss during training')
+            plt.xlabel('Batch')
+            plt.ylabel('Loss')
+            plt.show()
 
             # Test the agent
-            # game: GameInterface = Hex(self.board_size, current_black_player=False)
-            # test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
+            game: GameInterface = Hex(self.board_size, current_black_player=True)
+            test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
 
-            # while not game.is_final_state():
-            #     board, black_to_play = game.get_state(False)
-            #     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
-            #     game.display_current_state()
-            #     game.perform_action(action)
+            while not game.is_final_state():
+                board, black_to_play = game.get_state(False)
+                action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
+                game.display_current_state()
+                game.perform_action(action)
             
         self.save(self.total_search_count)
 
@@ -278,25 +337,25 @@ if __name__ == '__main__':
 
     # -------------- Hyperparameters -------------
     # Search parameters
-    board_size = 4
+    board_size = 7
     exploration_weight = 1.0
-    epsilon = 0.8
+    epsilon = 1.0
     epsilon_decay = 0.99
-    search_iterations = 10*board_size**2
+    search_iterations = 20*board_size**2
     num_games = 10
-    replay_buffer_max_length = 3000
+    replay_buffer_max_length = 10000
     # Set to None to start from scratch
     dataset_path = None # f'checkpoints/7by7_490iter_45_replay_buffer.npy'
     model_path   = None # f'checkpoints/7by7_490iter_45_model.pt'
 
     start_epoch = 0
-    total_search_count = 100
+    total_search_count = 200
 
     # Policy network parameters
-    learning_rate = 1e-3
-    l2_regularization = 1e-4 # Set to 0 for no regularization
+    learning_rate = 4e-3
+    l2_regularization = 0 # Set to 0 for no regularization
     batch_size = 128
-    num_epochs = 10
+    num_epochs = 200
     log_interval = 5
     save_interval = 5
     # --------------------------------------------
