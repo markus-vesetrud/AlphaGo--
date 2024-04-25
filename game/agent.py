@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from board_flipping_util import flip_board_perspective, flip_target_values_position
+from board_flipping_util import flip_board_perspective, flip_target_values_position, add_empty_marker
 
 class Agent():
     def select_action(self, game_board: np.ndarray, play_as_black: bool, legal_actions: list[int]) -> int:
@@ -35,9 +35,17 @@ class PolicyAgent(Agent):
         """
         legal_mask = np.isin(np.arange(self.board_size**2), legal_actions)
 
-        prediction *= legal_mask
+        masked_prediction = prediction * legal_mask
 
-        return prediction / np.sum(prediction)
+        total = np.sum(masked_prediction)
+
+        # if total == 0.0:
+        #     print("##########################")
+        #     print(legal_actions)
+        #     print(prediction)
+        #     print("##########################")
+
+        return masked_prediction / np.sum(masked_prediction)
 
 
     def select_action(self, game_board: np.ndarray, play_as_black: bool, legal_actions: list[int], verbose = False) -> int:
@@ -57,6 +65,7 @@ class PolicyAgent(Agent):
         
         # Convert the board to the format expected by the model
         # (A torch float32 Tensor with an added dimension for the batch size and the last dimension moved to the front)
+        game_board = add_empty_marker(game_board)
         game_board = torch.from_numpy(game_board).to(self.device).float()
         game_board = game_board.unsqueeze(0).permute(0, 3, 1, 2)
 
@@ -84,7 +93,13 @@ class PolicyAgent(Agent):
         #     print()
 
         # Return the best prediction
-        return prediction.argmax()
+
+        action = prediction.argmax()
+        
+        if action not in legal_actions:
+            print('Model output 0 at all legal actions, selecting randomly')
+            return np.random.choice(legal_actions)
+        return action
     
         # Return a prediction proportional to the probability of that prediction
         # return np.random.choice(np.arange(prediction.shape[0]), p=prediction)

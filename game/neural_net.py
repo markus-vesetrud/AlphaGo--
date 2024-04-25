@@ -8,13 +8,13 @@ import torch.nn.functional as F
 class LinearNeuralNet(torch.nn.Module):
     def __init__(self, board_size: int):
         super(LinearNeuralNet, self).__init__()
-        input_size = 2*board_size**2
-        self.l1 = nn.Linear(2*board_size**2, input_size*8)
+        input_size = 3*board_size**2
+        self.l1 = nn.Linear(input_size, input_size*8)
         self.l2 = nn.Linear(input_size*8, input_size*16)
         self.l3 = nn.Linear(input_size*16, input_size*16)
         self.l4 = nn.Linear(input_size*16, input_size*8)
-        self.l5 = nn.Linear(input_size*8, input_size//2)
-        self.dropout = nn.Dropout(0.25)
+        self.l5 = nn.Linear(input_size*8, board_size**2)
+        self.dropout = nn.Dropout(0.15)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 

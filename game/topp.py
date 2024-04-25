@@ -26,27 +26,27 @@ class TOPP():
         """
         for i in range(len(self.agents)):
             for j in range(len(self.agents)):
-                if i != j:
-                    agent1 = self.agents[i]
-                    agent2 = self.agents[j]
+                # if i != j:
+                agent1 = self.agents[i]
+                agent2 = self.agents[j]
 
-                    for _ in range(self.number_of_games):
-                        game: GameInterface = Hex(self.board_size)
+                for _ in range(self.number_of_games):
+                    game: GameInterface = Hex(self.board_size)
 
-                        # play the game
-                        while not game.is_final_state():
-                            board, black_to_play = game.get_state(False)
-                            legal_actions = game.get_legal_actions()
+                    # play the game
+                    while not game.is_final_state():
+                        board, black_to_play = game.get_state(False)
+                        legal_actions = game.get_legal_actions()
 
-                            if black_to_play:
-                                action = agent1.select_action(board, black_to_play, legal_actions)
-                            else:
-                                action = agent2.select_action(board, black_to_play, legal_actions)
+                        if black_to_play:
+                            action = agent1.select_action(board, black_to_play, legal_actions)
+                        else:
+                            action = agent2.select_action(board, black_to_play, legal_actions)
 
-                            game.perform_action(action)
-                        
-                        # update scores
-                        self.scores[i, j] += game.get_final_state_reward()
+                        game.perform_action(action)
+                    
+                    # update scores
+                    self.scores[i, j] += game.get_final_state_reward()
                         
         return self.scores / self.number_of_games
 
@@ -59,40 +59,43 @@ class TOPP():
         for i in range(len(self.agents)):
             print("-------------------------------------------------")
             for j in range(len(self.agents)):
-                if i != j:
-                    print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games)*100:.1f}%")
+                # if i != j:
+                print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games)*100:.1f}%")
 
 
 
 if __name__ == '__main__':
-    board_size = 4
+    board_size = 7
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     agents = [RandomAgent()]
 
+
+
+
     # Worst:
     model = LinearNeuralNet(board_size)
-    model.load_state_dict(torch.load('checkpoints/4by4_160iter_0_model.pt'))
+    model.load_state_dict(torch.load('checkpoints/7by7_735iter_85_model.pt'))
     model.to(device)
     agent = PolicyAgent(board_size, model, device, 0.0)
     agents.append(agent)
 
-    # Middle:
-    model = LinearNeuralNet(board_size)
-    model.load_state_dict(torch.load('checkpoints/4by4_160iter_15_model.pt'))
-    model.to(device)
-    agent = PolicyAgent(board_size, model, device, 0.0)
-    agents.append(agent)
+    # # Middle:
+    # model = LinearNeuralNet(board_size)
+    # model.load_state_dict(torch.load('checkpoints/7by7_735iter_90_model.pt'))
+    # model.to(device)
+    # agent = PolicyAgent(board_size, model, device, 0.0)
+    # agents.append(agent)
 
     # Best:
     model = LinearNeuralNet(board_size)
-    model.load_state_dict(torch.load('checkpoints/4by4_160iter_35_model.pt'))
+    model.load_state_dict(torch.load('checkpoints/7by7_735iter_115_model.pt'))
     model.to(device)
     agent = PolicyAgent(board_size, model, device, 0.0)
     agents.append(agent)
 
 
-    topp = TOPP(50, board_size, agents)
+    topp = TOPP(200, board_size, agents)
 
     topp.play_tournament()
     topp.visualize_results()

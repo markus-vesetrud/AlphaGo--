@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 import numpy as np
 import matplotlib.pyplot as plt
 import torch.multiprocessing 
@@ -49,15 +49,16 @@ class ReinforcementLearning():
         self.replay_buffer_max_length = replay_buffer_max_length
         if initial_replay_buffer_state is None:
             assert initial_replay_buffer_target is None
-            self.replay_buffer_state = np.zeros(shape=(0, self.board_size, self.board_size, 2), dtype=np.float32)
+            self.replay_buffer_state = np.zeros(shape=(0, self.board_size, self.board_size, 3), dtype=np.float32)
             self.replay_buffer_target = np.zeros(shape=(0, self.board_size**2), dtype=np.float32)
         else:
             assert initial_replay_buffer_state.shape[0] == initial_replay_buffer_target.shape[0]
             assert initial_replay_buffer_state.shape[1] == initial_replay_buffer_state.shape[2] == self.board_size
-            assert initial_replay_buffer_state.shape[3] == 2
+            assert initial_replay_buffer_state.shape[3] == 3
             assert initial_replay_buffer_target.shape[1] == self.board_size**2
             self.replay_buffer_state = initial_replay_buffer_state
             self.replay_buffer_target = initial_replay_buffer_target
+        np.set_printoptions(suppress=True, edgeitems=30, linewidth=100000, formatter=dict(float=lambda x: "%.3f" % x))
 
     
     def update_replay_buffer(self, game_states: list[np.ndarray], target_values: list[np.ndarray]) -> tuple[np.ndarray]:
@@ -82,7 +83,7 @@ class ReinforcementLearning():
             self.replay_buffer_target[remove_index,:] = target_values[i+cases_to_add]
 
 
-    def __simulate_game(self, send_connection) -> tuple[np.ndarray, np.ndarray]:
+    def simulate_game(self, send_connection) -> tuple[np.ndarray, np.ndarray]:
         """
         Simulates a single game and returns the game states and target values (probabilities of actions)
 
@@ -128,7 +129,7 @@ class ReinforcementLearning():
             # game.display_current_state()
     
 
-    def __simulate_games(self) -> tuple[np.ndarray, np.ndarray]:
+    def simulate_games(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Simulates a seires of games and returns the game states and target values (probabilities of actions)
 
@@ -140,7 +141,7 @@ class ReinforcementLearning():
         target_values = []
 
         pipes = [torch.multiprocessing.Pipe() for i in range(self.num_games)]
-        processes = [torch.multiprocessing.Process(target=self.__simulate_game, args=(pipes[i][1], )) for i in range(self.num_games)]
+        processes = [torch.multiprocessing.Process(target=self.simulate_game, args=(pipes[i][1], )) for i in range(self.num_games)]
 
         for game_number in range(self.num_games):
             processes[game_number].start()
@@ -236,7 +237,7 @@ class ReinforcementLearning():
 
             print(f'starting episode number {search_number}')
 
-            game_states, target_values = self.simulate_games_single_process()
+            game_states, target_values = self.simulate_games()
 
             self.update_replay_buffer(game_states, target_values)
 
@@ -248,10 +249,13 @@ class ReinforcementLearning():
             # the model is trained to predict the target values from the game states
 
             # Split the data into batches
-            dataset = TensorDataset(torch.from_numpy(self.replay_buffer_state), torch.from_numpy(self.replay_buffer_target))
-            data_loader = DataLoader(dataset, batch_size=self.batch_size)
+            dataset = TensorDataset(torch.from_numpy(self.replay_buffer_state).float(), torch.from_numpy(self.replay_buffer_target).float())
+            random_minibatch_sampler = RandomSampler(dataset, num_samples=self.batch_size)
+            data_loader = DataLoader(dataset, sampler=random_minibatch_sampler, batch_size=self.batch_size)
 
             loss_history = []
+
+            self.model.train()
 
             # Train the model
             for epoch in range(1, self.num_epochs+1):
@@ -275,26 +279,26 @@ class ReinforcementLearning():
             
             self.epsilon *= self.epsilon_decay
 
-            # game: GameInterface = Hex(self.board_size, current_black_player=True)
-            # test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
-            # board, black_to_play = game.get_state(False)
-            # print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose))
-
-            plt.plot(list(range(len(loss_history))), loss_history)
-            plt.title('Loss during training')
-            plt.xlabel('Batch')
-            plt.ylabel('Loss')
-            plt.show()
-
-            # Test the agent
             game: GameInterface = Hex(self.board_size, current_black_player=True)
             test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
+            board, black_to_play = game.get_state(False)
+            print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose))
 
-            while not game.is_final_state():
-                board, black_to_play = game.get_state(False)
-                action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
-                game.display_current_state()
-                game.perform_action(action)
+            # plt.plot(list(range(len(loss_history))), loss_history)
+            # plt.title('Loss during training')
+            # plt.xlabel('Batch')
+            # plt.ylabel('Loss')
+            # plt.show()
+
+            # Test the agent
+            # game: GameInterface = Hex(self.board_size, current_black_player=True)
+            # test_agent = PolicyAgent(self.board_size, self.model, self.device, 0.0)
+
+            # while not game.is_final_state():
+            #     board, black_to_play = game.get_state(False)
+            #     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
+            #     game.display_current_state()
+            #     game.perform_action(action)
             
         self.save(self.total_search_count)
 
@@ -339,23 +343,23 @@ if __name__ == '__main__':
     # Search parameters
     board_size = 7
     exploration_weight = 1.0
-    epsilon = 1.0
+    epsilon = 0.50
     epsilon_decay = 0.99
-    search_iterations = 20*board_size**2
-    num_games = 10
-    replay_buffer_max_length = 10000
+    search_iterations = 15*board_size**2
+    num_games = 15
+    replay_buffer_max_length = 2048*5
     # Set to None to start from scratch
-    dataset_path = None # f'checkpoints/7by7_490iter_45_replay_buffer.npy'
-    model_path   = None # f'checkpoints/7by7_490iter_45_model.pt'
+    dataset_path = f'checkpoints/7by7_735iter_80_replay_buffer.npy'
+    model_path   = f'checkpoints/7by7_735iter_80_model.pt'
 
-    start_epoch = 0
+    start_epoch = 81
     total_search_count = 200
 
     # Policy network parameters
     learning_rate = 4e-3
-    l2_regularization = 0 # Set to 0 for no regularization
-    batch_size = 128
-    num_epochs = 200
+    l2_regularization = 5e-7 # Set to 0 for no regularization
+    batch_size = 2048
+    num_epochs = 150
     log_interval = 5
     save_interval = 5
     # --------------------------------------------

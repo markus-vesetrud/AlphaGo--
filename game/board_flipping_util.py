@@ -49,12 +49,25 @@ def __softmax(x: np.ndarray):
     return e_x / e_x.sum()
 
 
+def add_empty_marker(board: np.ndarray):
+    # Assumes board is 3 dimensional with shape (board_size, board_size, 2)
+    # Returns a board with shape (board_size, board_size, 3)
+    extended_board = np.zeros(shape=(board.shape[0], board.shape[1], board.shape[2]+1), dtype=board.dtype)
+    extended_board[:,:,:2] = board
+    empty_piece = np.zeros(shape=(2), dtype=board.dtype)[np.newaxis, np.newaxis, :]
+    empty_locations = np.equal(board, empty_piece).all(axis=2)
+    extended_board[:,:,2] = empty_locations
+    return extended_board
+
+
 def create_training_cases(board_size: int, game_board: np.ndarray, black_to_play: bool, node_action_values: list[float], legal_actions: list[int]) -> tuple[list[np.ndarray]]:
     """
     Takes in a board, which players turn it is, and information about the best move
 
     Returns a list of 2 game states and 2 target values, if it is red's turn, the player perspective is flipped
     The 2 game states and target values returned are 180 degree rotations about each other
+
+    Also extends the board to have 3 channels, the last channel indicating the board is empty
     """
     game_states = []
     target_values = []
@@ -70,11 +83,11 @@ def create_training_cases(board_size: int, game_board: np.ndarray, black_to_play
         
         current_target_values = __softmax(node_action_values + legal_inf_mask)
         # adding original board
-        game_states.append(deepcopy(game_board))
+        game_states.append(add_empty_marker(deepcopy(game_board)))
         target_values.append(current_target_values)
 
         # adding 180 degree rotated board
-        game_states.append(deepcopy(np.rot90(game_board, k=2)))
+        game_states.append(add_empty_marker(deepcopy(np.rot90(game_board, k=2))))
         fully_rotated_current_target_values = np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten()
         target_values.append(fully_rotated_current_target_values)
 
@@ -96,11 +109,11 @@ def create_training_cases(board_size: int, game_board: np.ndarray, black_to_play
         game_board = flip_board_perspective(board_size, game_board)
 
         # adding perspective flipped board
-        game_states.append(deepcopy(game_board))
+        game_states.append(add_empty_marker(deepcopy(game_board)))
         target_values.append(current_target_values)
 
         # adding perspective flipped and 180 degree rotated board
-        game_states.append(deepcopy(np.rot90(game_board, k=2)))
+        game_states.append(add_empty_marker(deepcopy(np.rot90(game_board, k=2))))
         target_values.append(np.rot90(current_target_values.reshape((board_size, board_size)), k=2).flatten())
     
     return game_states, target_values
