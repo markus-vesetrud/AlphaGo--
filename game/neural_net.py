@@ -108,26 +108,56 @@ class LinearResidualNet(torch.nn.Module):
 #         return x
     
 class ConvolutionalNeuralNet(nn.Module):
-    def __init__(self, board_size):
+    def __init__(self, board_size, channels = 128, layers = 8):
         super(ConvolutionalNeuralNet, self).__init__()
         self.board_size = board_size
-    
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(2, 64, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.layers_middle = layers - 1
+        in_channels = 3
 
-        # Fully connected layer
-        self.fc = nn.Linear(128 * board_size * board_size, board_size * board_size)
+        self.conv_start = torch.nn.Conv2d(in_channels, channels, kernel_size=5, padding=0)
+
+        self.conv_middle = []
+        for i in range(self.layers_middle):
+            self.conv_middle.append(torch.nn.Conv2d(channels, channels, kernel_size=3, padding=1))
+        
+        # Connects all the channels per board position to a single board position
+        self.conv_end = torch.nn.Conv2d(channels, 1, kernel_size=1, padding=0)
+
+
+    def add_padding(self, board: torch.Tensor) -> torch.Tensor:
+        
+        # add a padding of 2 around the board
+        black_channel = board[:,0,:,:]
+        red_channel = board[:,1,:,:]
+        empty_channel = board[:,2,:,:]
+        black_channel = F.pad(black_channel, (0, 0, 2, 2, 0, 0), mode='constant', value=0.0)
+        black_channel = F.pad(black_channel, (2, 2, 0, 0, 0, 0), mode='constant', value=1.0)
+        red_channel = F.pad(red_channel, (0, 0, 2, 2, 0, 0), mode='constant', value=1.0)
+        red_channel = F.pad(red_channel, (2, 2, 0, 0, 0, 0), mode='constant', value=0.0)
+        empty_channel = F.pad(empty_channel, (2, 2, 2, 2, 0, 0), mode='constant', value=0.0)
+
+        board = torch.stack((black_channel, red_channel, empty_channel), dim=1)
+        
+        return board 
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+
+        
+        
+        x = self.add_padding(x)
+        
+        x = self.conv_start(x)
+        x = F.relu(x)
+
+        for i in range(self.layers_middle):
+            x = self.conv_middle[i](x)
+            x = F.relu(x)
+
+        x = self.conv_end(x)
+        x = F.relu(x)
 
         # Flatten the tensor
-        x = torch.flatten(x, start_dim=1) # x = x.view(-1, 128 * self.board_size * self.board_size)
-
-        # Fully connected layer
-        x = self.fc(x)
+        x = torch.flatten(x, start_dim=1)
 
         # Apply softmax to get probabilities
         x = F.softmax(x, dim=1)

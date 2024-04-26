@@ -1,4 +1,7 @@
 import numpy as np
+import torch
+
+from neural_net import LinearResidualNet
 try:
     from game.game_interface import GameInterface
     from game.hex import Hex
@@ -7,7 +10,7 @@ try:
 except ModuleNotFoundError:
     from game_interface import GameInterface
     from hex import Hex
-    from agent import Agent, RandomAgent
+    from agent import Agent, RandomAgent, PolicyAgent
     from hex_client_23.ActorClient import ActorClient
 
 """
@@ -16,7 +19,13 @@ This will expect a folder named `hex_client_23` in the same directory as this sc
 The `hex_client_23` folder should contain the `ActorClient.py` file, etc.
 """
 
-actor: Agent = RandomAgent() # will be replaced by the actual trained agent
+board_size = 7
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = LinearResidualNet(board_size)
+model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_145_model.pt', map_location=torch.device(device)))
+model.to(device)
+model.eval()
+actor = PolicyAgent(board_size, model, device, 0.0, random_proportional=True)
 
 # Import and override the `handle_get_action` hook in ActorClient
 class MyClient(ActorClient):

@@ -343,8 +343,8 @@ if __name__ == '__main__':
     # Search parameters
     board_size = 7
     exploration_weight = 1.0
-    epsilon = 0.90
-    epsilon_decay = 0.99
+    epsilon = 0.40
+    epsilon_decay = 0.994
     search_iterations = 10*board_size**2
     num_games = 15
     replay_buffer_max_length = 2048*5
@@ -356,8 +356,8 @@ if __name__ == '__main__':
     total_search_count = 200
 
     # Policy network parameters
-    learning_rate = 4e-3
-    l2_regularization = 1e-6 # Set to 0 for no regularization
+    learning_rate = 1e-3
+    l2_regularization = 1e-8 # Set to 0 for no regularization
     batch_size = 2048
     num_epochs = 150
     log_interval = 5
