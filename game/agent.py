@@ -19,13 +19,14 @@ class RandomAgent(Agent):
 
 
 class PolicyAgent(Agent):
-    def __init__(self, board_size, model: nn.Module, device, epsilon: float) -> None:
+    def __init__(self, board_size, model: nn.Module, device, epsilon: float, random_proportional = False) -> None:
         super().__init__()
 
         self.board_size = board_size
         self.model = model
         self.device = device
         self.epsilon = epsilon
+        self.random_proportional = random_proportional
 
 
     def __rescale_prediction(self, prediction: np.ndarray, legal_actions: list[int]) -> np.ndarray:
@@ -45,7 +46,7 @@ class PolicyAgent(Agent):
         #     print(prediction)
         #     print("##########################")
 
-        return masked_prediction / np.sum(masked_prediction)
+        return masked_prediction / total
 
 
     def select_action(self, game_board: np.ndarray, play_as_black: bool, legal_actions: list[int], verbose = False) -> int:
@@ -92,14 +93,18 @@ class PolicyAgent(Agent):
         #     print(prediction.reshape((self.board_size, self.board_size)))
         #     print()
 
-        # Return the best prediction
 
-        action = prediction.argmax()
+        # Return a prediction proportional to the probability of that prediction
+        if self.random_proportional:
+            action =  np.random.choice(np.arange(prediction.shape[0]), p=prediction)
+        
+        # Return the best prediction
+        else:
+            action = prediction.argmax()
         
         if action not in legal_actions:
             print('Model output 0 at all legal actions, selecting randomly')
             return np.random.choice(legal_actions)
+        
         return action
     
-        # Return a prediction proportional to the probability of that prediction
-        # return np.random.choice(np.arange(prediction.shape[0]), p=prediction)
