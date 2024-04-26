@@ -41,6 +41,46 @@ class LinearNeuralNet(torch.nn.Module):
         x = F.softmax(x, dim=1)
         return x
 
+class LinearResidualNet(torch.nn.Module):
+    def __init__(self, board_size: int):
+        super(LinearResidualNet, self).__init__()
+        input_size = 3*board_size**2
+        self.l1 = nn.Linear(input_size, input_size*8)
+        self.l2 = nn.Linear(input_size*8, input_size*16)
+        self.l3 = nn.Linear(input_size*16, input_size*16)
+        self.l4 = nn.Linear(input_size*16, input_size*8)
+        self.l5 = nn.Linear(input_size*8+board_size**2, board_size**2)
+        self.dropout = nn.Dropout(0.25)
+
+    def forward(self, input_matrix: torch.Tensor) -> torch.Tensor:
+        occupied = 1 - input_matrix[:,-1,:,:]
+        occupied = torch.flatten(occupied, start_dim=1)
+        input_matrix = torch.flatten(input_matrix, start_dim=1)
+        
+        x = self.l1(input_matrix)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l2(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l3(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l4(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        # Merge the input with the network output
+        # This way the last layer can easily learn to set positions that are occupied to 0
+        x = torch.hstack((x, occupied))
+
+        x = self.l5(x)
+        x = F.softmax(x, dim=1)
+        return x
+
 # class LinearNeuralNet(torch.nn.Module):
 #     def __init__(self, board_size: int):
 #         super(LinearNeuralNet, self).__init__()

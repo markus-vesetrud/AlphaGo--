@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from agent import Agent, RandomAgent, PolicyAgent
-from neural_net import LinearNeuralNet
+from neural_net import LinearNeuralNet, LinearResidualNet
 from game_interface import GameInterface
 from hex import Hex
 
@@ -75,27 +75,30 @@ if __name__ == '__main__':
 
     # Worst:
     model = LinearNeuralNet(board_size)
-    model.load_state_dict(torch.load('checkpoints/7by7_735iter_85_model.pt'))
+    model.load_state_dict(torch.load('holy_grail/7by7_735iter_80_model.pt'))
     model.to(device)
+    model.eval()
     agent = PolicyAgent(board_size, model, device, 0.0)
     agents.append(agent)
 
-    # # Middle:
-    # model = LinearNeuralNet(board_size)
-    # model.load_state_dict(torch.load('checkpoints/7by7_735iter_90_model.pt'))
-    # model.to(device)
-    # agent = PolicyAgent(board_size, model, device, 0.0)
-    # agents.append(agent)
+    # Middle:
+    model = LinearResidualNet(board_size)
+    model.load_state_dict(torch.load('checkpoints/7by7_490iter_15_model.pt'))
+    model.to(device)
+    model.eval()
+    agent = PolicyAgent(board_size, model, device, 0.0)
+    agents.append(agent)
 
     # Best:
-    model = LinearNeuralNet(board_size)
-    model.load_state_dict(torch.load('checkpoints/7by7_735iter_115_model.pt'))
+    model = LinearResidualNet(board_size)
+    model.load_state_dict(torch.load('checkpoints/7by7_490iter_145_model.pt'))
     model.to(device)
+    model.eval()
     agent = PolicyAgent(board_size, model, device, 0.0)
     agents.append(agent)
 
 
-    topp = TOPP(200, board_size, agents)
+    topp = TOPP(100, board_size, agents)
 
     topp.play_tournament()
     topp.visualize_results()

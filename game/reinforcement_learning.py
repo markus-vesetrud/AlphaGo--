@@ -13,7 +13,7 @@ except RuntimeError:
 from game_interface import GameInterface
 from hex import Hex
 from mcts import MCTreeSearch, MCTreeNode
-from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet
+from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet, LinearResidualNet
 from board_flipping_util import create_training_cases
 from agent import PolicyAgent
 
@@ -343,21 +343,21 @@ if __name__ == '__main__':
     # Search parameters
     board_size = 7
     exploration_weight = 1.0
-    epsilon = 0.50
+    epsilon = 0.90
     epsilon_decay = 0.99
-    search_iterations = 15*board_size**2
+    search_iterations = 10*board_size**2
     num_games = 15
     replay_buffer_max_length = 2048*5
     # Set to None to start from scratch
-    dataset_path = f'checkpoints/7by7_735iter_80_replay_buffer.npy'
-    model_path   = f'checkpoints/7by7_735iter_80_model.pt'
+    dataset_path = f'7by7_1470_iter_150_games.npy'
+    model_path   = f'test_model.pt'
 
-    start_epoch = 81
+    start_epoch = 0
     total_search_count = 200
 
     # Policy network parameters
     learning_rate = 4e-3
-    l2_regularization = 5e-7 # Set to 0 for no regularization
+    l2_regularization = 1e-6 # Set to 0 for no regularization
     batch_size = 2048
     num_epochs = 150
     log_interval = 5
@@ -368,9 +368,10 @@ if __name__ == '__main__':
     # ------------- Other Variables --------------
 
     # Model
-    model = LinearNeuralNet(board_size)
+    # model = LinearNeuralNet(board_size)
     # model = ConvolutionalNeuralNet(board_size)
     # model = DeepConvolutionalNeuralNet(board_size)
+    model = LinearResidualNet(board_size)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.

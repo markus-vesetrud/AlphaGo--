@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from time import time
 
 from hex import Hex
-from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet
+from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet, LinearResidualNet
 from reinforcement_learning import ReinforcementLearning
 from agent import PolicyAgent
 from game_interface import GameInterface
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # Policy network parameters
     learning_rate = 4e-3
 
-    l2_regularization = 0 # Set to 0 for no regularization
+    l2_regularization = 1e-7 # Set to 0 for no regularization
     batch_size = 2048
     num_epochs = 200
     log_interval = 15
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Model
-    model = LinearNeuralNet(board_size)
+    model = LinearResidualNet(board_size)
     # model = ConvolutionalNeuralNet(board_size)
     # model = DeepConvolutionalNeuralNet(board_size)
 
@@ -88,20 +88,21 @@ if __name__ == '__main__':
     # with open('7by7_1470_iter_150_games.npy', 'wb') as f:
     #     np.save(f, total_game_states)
     #     np.save(f, total_target_values)
-    # with open('holy_grail/7by7_980iter_25_replay_buffer.npy', 'rb') as f:
-    #     game_states: np.ndarray = np.load(f)
-    #     target_values: np.ndarray = np.load(f)
+    with open('7by7_1470_iter_150_games.npy', 'rb') as f:
+        game_states: np.ndarray = np.load(f)
+        target_values: np.ndarray = np.load(f)
 
     # for i in range(0, game_states.shape[0], 2):
     #     print(target_values[i,:].reshape((board_size, board_size)))
     #     Hex(board_size, game_states[i,:,:,:2]).display_current_state()
     
     
-    # print(game_states.shape)
+    print(game_states.shape)
 
-    model.load_state_dict(torch.load('checkpoints/7by7_735iter_85_model.pt'))
+    model.load_state_dict(torch.load('checkpoints/7by7_490iter_50_model.pt'))
 
     model.to(device)
+    # model.train()
     # dataset = TensorDataset(torch.from_numpy(game_states).float(), torch.from_numpy(target_values))
     # data_loader = DataLoader(dataset, batch_size=batch_size)
     # loss_history = []
@@ -142,6 +143,7 @@ if __name__ == '__main__':
     # Test the agent
     game: GameInterface = Hex(board_size, current_black_player=True)
     test_agent = PolicyAgent(board_size, model, device, 0.0)
+    model.eval()
 
     game_length = 0
     while not game.is_final_state():
