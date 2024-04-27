@@ -69,7 +69,6 @@ class PolicyAgent(Agent):
         game_board = add_empty_marker(game_board)
         game_board = torch.from_numpy(game_board).to(self.device).float()
         game_board = game_board.unsqueeze(0).permute(0, 3, 1, 2)
-        print(game_board)
 
         self.model.eval()
         with torch.no_grad():
