@@ -20,7 +20,7 @@ from agent import PolicyAgent
 from parameters import *
 
 class ReinforcementLearning():
-    def __init__(self, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
+    def __init__(self, models_name: str, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
                  search_iterations: int, num_games: int, total_search_count: int,
                  batch_size: int, num_epochs: int, log_interval: int, save_interval: int,
                  loss_fn, optimizer, model: nn.Module,
@@ -34,6 +34,8 @@ class ReinforcementLearning():
         self.search_iterations = search_iterations
         self.num_games = num_games
         self.total_search_count = total_search_count
+        self.models_name = models_name
+        self.model_paths = []
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -225,9 +227,12 @@ class ReinforcementLearning():
         return (game_states, target_values)
 
     def save(self, search_number):
-        dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
-        model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
-        
+        # dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+        # model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+        dataset_path = f'checkpoints/{self.models_name}:{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+        model_path = f'checkpoints/{self.models_name}:{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+        self.model_paths.append(model_path)
+
         with open(dataset_path, 'wb') as f:
             np.save(f, self.replay_buffer_state)
             np.save(f, self.replay_buffer_target)
