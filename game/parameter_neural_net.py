@@ -1,47 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
-import torch.nn.functional as F
 
 from parameters import *
 
-class LinearNeuralNet(torch.nn.Module):
-    def __init__(self, board_size: int):
-        super(LinearNeuralNet, self).__init__()
-        input_size = 3*board_size**2
-        self.l1 = nn.Linear(input_size, input_size*8)
-        self.l2 = nn.Linear(input_size*8, input_size*16)
-        self.l3 = nn.Linear(input_size*16, input_size*16)
-        self.l4 = nn.Linear(input_size*16, input_size*8)
-        self.l5 = nn.Linear(input_size*8, board_size**2)
-        self.dropout = nn.Dropout(0.15)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-
-        x = torch.flatten(x, start_dim=1)
-        
-        x = self.l1(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-
-        x = self.l2(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-
-        x = self.l3(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-
-        x = self.l4(x)
-        x = F.relu(x)
-        x = self.dropout(x)
-
-
-        x = self.l5(x)
-        x = F.softmax(x, dim=1)
-        return x
 
 class LinearResidualNet(torch.nn.Module):
     def __init__(self, board_size: int):
@@ -99,7 +61,49 @@ class LinearResidualNet(torch.nn.Module):
         x = self.layer_out(x)
         x = F.softmax(x, dim=1)
         return x
+
+
+class LinearResidualNetOld(torch.nn.Module):
+    def __init__(self, board_size: int):
+        super(LinearResidualNetOld, self).__init__()
+        input_size = 3*board_size**2
+        self.l1 = nn.Linear(input_size, input_size*8)
+        self.l2 = nn.Linear(input_size*8, input_size*16)
+        self.l3 = nn.Linear(input_size*16, input_size*16)
+        self.l4 = nn.Linear(input_size*16, input_size*8)
+        self.l5 = nn.Linear(input_size*8+board_size**2, board_size**2)
+        self.dropout = nn.Dropout(0.25)
+
+    def forward(self, input_matrix: torch.Tensor) -> torch.Tensor:
+        occupied = 1 - input_matrix[:,-1,:,:]
+        occupied = torch.flatten(occupied, start_dim=1)
+        input_matrix = torch.flatten(input_matrix, start_dim=1)
+        
+        x = self.l1(input_matrix)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l2(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l3(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        x = self.l4(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+
+        # Merge the input with the network output
+        # This way the last layer can easily learn to set positions that are occupied to 0
+        x = torch.hstack((x, occupied))
+
+        x = self.l5(x)
+        x = F.softmax(x, dim=1)
+        return x
     
+
 class ConvolutionalNeuralNet(nn.Module):
     def __init__(self, board_size, channels = 128, layers = 8):
         super(ConvolutionalNeuralNet, self).__init__()
@@ -164,43 +168,6 @@ class ConvolutionalNeuralNet(nn.Module):
 
         return x
     
-class DeepConvolutionalNeuralNet(nn.Module):
-    def __init__(self, board_size):
-        super(DeepConvolutionalNeuralNet, self).__init__()
-        self.board_size = board_size
-        
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(2, 64, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-        self.conv4 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
-
-        # Batch normalization layers
-        self.bn1 = nn.BatchNorm2d(64)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.bn4 = nn.BatchNorm2d(128)
-
-        # Fully connected layer
-        self.fc = nn.Linear(128 * board_size * board_size, board_size * board_size)
-        # may be necessary to add more FC layers, testing will show
-
-    def forward(self, x):
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.bn4(self.conv4(x)))
-
-        # Flatten the tensor
-        x = x.view(-1, 128 * self.board_size * self.board_size)
-
-        # Fully connected layer
-        x = self.fc(x)
-
-        # Apply softmax to get probabilities
-        x = F.softmax(x, dim=1)
-
-        return x
 
 # --------------------------------
     

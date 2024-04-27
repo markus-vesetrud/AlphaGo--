@@ -353,8 +353,8 @@ if __name__ == '__main__':
     num_games = NUM_GAMES
     replay_buffer_max_length = 2048*5
     # Set to None to start from scratch
-    dataset_path = f'7by7_1470_iter_150_games.npy' # add these to parameters?
-    model_path   = f'test_model.pt'
+    dataset_path = INITIAL_REPLAY_BUFFER
+    model_path   = MODEL_START
 
     start_epoch = 0
     total_search_count = NUM_EPISODES

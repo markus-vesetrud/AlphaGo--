@@ -2,10 +2,10 @@
 BOARD_SIZE = 4
 
 # ANET
-LEARNING_RATE = 1e-3
-ACTIVATION_FUNCTION = 'relu' # linear, sigmoid, tanh, RELU
-OPTIMIZER = 'adam' # Adagrad, SGD (Stochastic Gradient Descent), RMSProp, Adam
-NUM_NEURONS = [8, 16, 8] # from i=0, to i=NUM_HIDDEN_LAYERS. I.e., NUM_HIDDEN_LAYERS+1 elements
+LEARNING_RATE         = 1e-3
+ACTIVATION_FUNCTION   = 'relu' # linear, sigmoid, tanh, RELU
+OPTIMIZER             = 'adam' # Adagrad, SGD (Stochastic Gradient Descent), RMSProp, Adam
+NUM_NEURONS           = [8, 16, 8] # from i=0, to i=NUM_HIDDEN_LAYERS. I.e., NUM_HIDDEN_LAYERS+1 elements
 
 # MCTS
 NUM_EPISODES = 50
@@ -27,6 +27,10 @@ NUM_EPOCHS = 20
 LOG_INTERVAL = 5
 SAVE_INTERVAL = 5
 
+# RL model and replay buffer
+REPLAY_BUFFER_MAX_LENGTH = BATCH_SIZE*5
+INITIAL_REPLAY_BUFFER    = None # path or None
+MODEL_START              = None # path or None
 
 # # For training large networks from scratch
 # # BOARD
@@ -37,6 +41,8 @@ SAVE_INTERVAL = 5
 # ACTIVATION_FUNCTION = 'relu' # linear, sigmoid, tanh, RELU
 # OPTIMIZER = 'adam' # Adagrad, SGD (Stochastic Gradient Descent), RMSProp, Adam
 # NUM_NEURONS = [8, 16, 16, 8] # from i=0, to i=NUM_HIDDEN_LAYERS. I.e., NUM_HIDDEN_LAYERS+1 elements
+# INITIAL_REPLAY_BUFFER = '7by7_1470_iter_150_games.npy' # path or None
+# MODEL_START           = 'test_model.pt' # path or None
 
 # # MCTS
 # NUM_EPISODES = 200
