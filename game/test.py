@@ -11,6 +11,7 @@ from reinforcement_learning import ReinforcementLearning
 from agent import PolicyAgent
 from game_interface import GameInterface
 
+from parameters import *
 
 def save_datset(game_states, target_values, filename: str):
     game_states_np = np.zeros(shape=(0,game_states[0].shape[0],game_states[0].shape[1],game_states[0].shape[2]))
@@ -28,10 +29,10 @@ if __name__ == '__main__':
 
     # -------------- Hyperparameters -------------
     # Search parameters
-    board_size = 7
-    exploration_weight = 1.0
-    epsilon = 1.0
-    epsilon_decay = 1.0
+    board_size = BOARD_SIZE
+    exploration_weight = 1.0 # = EXPLORATION_WEIGHT
+    epsilon = 1.0 # = EPSILON
+    epsilon_decay = 1.0 # = EPSILON_DECAY
     search_iterations = 30*board_size**2
     num_games = 15
     replay_buffer_max_length = 10000
@@ -40,13 +41,13 @@ if __name__ == '__main__':
     total_search_count = 100
 
     # Policy network parameters
-    learning_rate = 4e-3
+    learning_rate = LEARNING_RATE
 
-    l2_regularization = 1e-8 # Set to 0 for no regularization
-    batch_size = 2048
-    num_epochs = 200
-    log_interval = 15
-    save_interval = 5
+    l2_regularization = L2_REGULARIZATION
+    batch_size = BATCH_SIZE
+    num_epochs = NUM_EPOCHS
+    log_interval = LOG_INTERVAL
+    save_interval = SAVE_INTERVAL
     # --------------------------------------------
 
 
@@ -54,14 +55,22 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Model
-    # model = LinearResidualNet(board_size)
-    model = ConvolutionalNeuralNet(board_size)
+    model = LinearResidualNet(board_size)
+    # model = ConvolutionalNeuralNet(board_size)
     # model = DeepConvolutionalNeuralNet(board_size)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
-
+    if OPTIMIZER == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'adagrad':
+        optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'rmsprop':
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    else:
+        raise ValueError(f'Optimizer not recognized: {OPTIMIZER}')
 
 
     # reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, epsilon_decay,

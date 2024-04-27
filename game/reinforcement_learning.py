@@ -17,6 +17,7 @@ from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, Linea
 from board_flipping_util import create_training_cases
 from agent import PolicyAgent
 
+from parameters import *
 
 class ReinforcementLearning():
     def __init__(self, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
@@ -237,7 +238,10 @@ class ReinforcementLearning():
 
             print(f'starting episode number {search_number}')
 
-            game_states, target_values = self.simulate_games()
+            if SIMULATE_GAMES == 'single':
+                game_states, target_values = self.simulate_games_single_process()
+            elif SIMULATE_GAMES == 'multi':
+                game_states, target_values = self.simulate_games()
 
             self.update_replay_buffer(game_states, target_values)
 
@@ -341,27 +345,27 @@ if __name__ == '__main__':
 
     # -------------- Hyperparameters -------------
     # Search parameters
-    board_size = 7
-    exploration_weight = 1.0
-    epsilon = 0.40
-    epsilon_decay = 0.994
-    search_iterations = 10*board_size**2
-    num_games = 15
+    board_size = BOARD_SIZE
+    exploration_weight = EXPLORATION_WEIGHT
+    epsilon = EPSILON
+    epsilon_decay = EPSILON_DECAY
+    search_iterations = NUM_SEARCH
+    num_games = NUM_GAMES
     replay_buffer_max_length = 2048*5
     # Set to None to start from scratch
-    dataset_path = f'7by7_1470_iter_150_games.npy'
+    dataset_path = f'7by7_1470_iter_150_games.npy' # add these to parameters?
     model_path   = f'test_model.pt'
 
     start_epoch = 0
-    total_search_count = 200
+    total_search_count = NUM_EPISODES
 
     # Policy network parameters
-    learning_rate = 1e-3
-    l2_regularization = 1e-8 # Set to 0 for no regularization
-    batch_size = 2048
-    num_epochs = 150
-    log_interval = 5
-    save_interval = 5
+    learning_rate = LEARNING_RATE
+    l2_regularization = L2_REGULARIZATION
+    batch_size = BATCH_SIZE
+    num_epochs = NUM_EPOCHS
+    log_interval = LOG_INTERVAL
+    save_interval = SAVE_INTERVAL
     # --------------------------------------------
 
 
@@ -375,7 +379,14 @@ if __name__ == '__main__':
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    if OPTIMIZER == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'adagrad':
+        optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'rmsprop':
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
 
 
     if model_path is not None and dataset_path is not None:
