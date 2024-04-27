@@ -22,7 +22,7 @@ from parameters import *
 class ReinforcementLearning():
     def __init__(self, models_name: str, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
                  search_iterations: int, num_games: int, total_search_count: int,
-                 batch_size: int, num_epochs: int, log_interval: int, save_interval: int,
+                 batch_size: int, num_epochs: int, save_interval: int,
                  loss_fn, optimizer, model: nn.Module,
                  verbose: bool, start_epoch: int, replay_buffer_max_length: int, 
                  initial_replay_buffer_state: np.ndarray = None, initial_replay_buffer_target: np.ndarray = None) -> None:
@@ -39,7 +39,6 @@ class ReinforcementLearning():
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-        self.log_interval = log_interval
         self.save_interval = save_interval
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.loss_fn = loss_fn
@@ -281,10 +280,8 @@ class ReinforcementLearning():
                     loss_history.append(float(loss))
                     self.optimizer.step()
 
-                    if i % self.log_interval == 0:
-                        print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                            epoch, i * self.batch_size, len(data_loader.dataset),
-                            100. * i / len(data_loader), loss.item()))
+                    
+                print(f'Train Epoch: {epoch}\tLoss: {float(loss):.6f}')
             
             self.epsilon *= self.epsilon_decay
 
@@ -308,7 +305,8 @@ class ReinforcementLearning():
             #     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
             #     game.display_current_state()
             #     game.perform_action(action)
-            
+        
+        print('#####################')
         self.save(self.total_search_count)
 
 def starter_win_ratio(model: nn.Module, device, board_size: int, epsilon: float, num_games: int = 10000):
@@ -369,8 +367,8 @@ if __name__ == '__main__':
     l2_regularization = L2_REGULARIZATION
     batch_size = BATCH_SIZE
     num_epochs = NUM_EPOCHS
-    log_interval = LOG_INTERVAL
-    save_interval = SAVE_INTERVAL
+    save_interval = NUM_EPISODES / (NUM_CACHED_ANETS - 1)
+
     # --------------------------------------------
 
 
@@ -416,7 +414,7 @@ if __name__ == '__main__':
 
     reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, epsilon_decay,
                                                 search_iterations, num_games, total_search_count, 
-                                                batch_size, num_epochs, log_interval, save_interval, loss_fn=criterion, 
+                                                batch_size, num_epochs, save_interval, loss_fn=criterion, 
                                                 optimizer=optimizer, model=model, verbose=True, 
                                                 start_epoch=start_epoch, replay_buffer_max_length=replay_buffer_max_length, 
                                                 initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)

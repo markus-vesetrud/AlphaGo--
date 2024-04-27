@@ -35,10 +35,10 @@ else:
 
 
 
-
+save_interval = NUM_EPISODES / (NUM_CACHED_ANETS - 1)
 reinforcement_learning = ReinforcementLearning('Demo', BOARD_SIZE, EXPLORATION_WEIGHT, EPSILON, EPSILON_DECAY,
                                             NUM_SEARCH, NUM_GAMES, NUM_EPISODES, 
-                                            BATCH_SIZE, NUM_EPOCHS, LOG_INTERVAL, SAVE_INTERVAL, loss_fn=criterion, 
+                                            BATCH_SIZE, NUM_EPOCHS, save_interval, loss_fn=criterion, 
                                             optimizer=optimizer, model=model, verbose=True, 
                                             start_epoch=0, replay_buffer_max_length=REPLAY_BUFFER_MAX_LENGTH, 
                                             initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)
@@ -46,9 +46,14 @@ reinforcement_learning = ReinforcementLearning('Demo', BOARD_SIZE, EXPLORATION_W
 reinforcement_learning.main_loop()
 
 checkpoint_paths = reinforcement_learning.model_paths
+# checkpoint_paths = ['checkpoints/Demo:4by4_160iter_0_model.pt', 
+#                     'checkpoints/Demo:4by4_160iter_10_model.pt', 
+#                     'checkpoints/Demo:4by4_160iter_20_model.pt', 
+#                     'checkpoints/Demo:4by4_160iter_30_model.pt']
 agents = []
 for model_path in checkpoint_paths:
 
+    print(model_path)
     model = LinearResidualNet(BOARD_SIZE)
     model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
     model.to(device)
