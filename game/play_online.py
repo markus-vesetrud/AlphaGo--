@@ -25,7 +25,7 @@ model = LinearResidualNet(board_size)
 model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_145_model.pt', map_location=torch.device(device)))
 model.to(device)
 model.eval()
-actor = PolicyAgent(board_size, model, device, 0.0, random_proportional=True)
+actor = PolicyAgent(board_size, model, device, 0.0, random_proportional=False)
 
 # Import and override the `handle_get_action` hook in ActorClient
 class MyClient(ActorClient):
@@ -57,13 +57,18 @@ class MyClient(ActorClient):
                  /|
         """
         board_size = int(np.sqrt(len(state) - 1))
-        if state[0] == 2:
-            black_to_play = True
-        else:
-            black_to_play = False
+
+        # We are 1, the server is 2, if the server starts the game, the first board we are given are
+        # a board with a single 2 filled in
+        assert state[0] == 1
+        black_to_play = True
 
         # Convert the state to a 2D array
         state = np.array(state[1:]).reshape(board_size, board_size)
+
+        # Flip the board so it matches our setup
+        # Now player 1 (us, black) should go from left to right and player 2 from top to bottom
+        state = state.transpose()
 
         # Define replacement arrays
         replace_0 = np.array([False, False])
@@ -84,14 +89,15 @@ class MyClient(ActorClient):
         legal_actions = game.get_legal_actions()
         
         action = actor.select_action(board, black_to_play, legal_actions) # Your logic
-        print("Action: ", action)
+        # print("Action: ", action)
         
-        row = action // board_size
-        col = action % board_size
+        # The row and column here is dependent on whether the board was transposed earlier
+        row = action % board_size
+        col = action // board_size
 
-        return int (row), int (col)
+        return int(row), int(col)
 
 # Initialize and run your overridden client when the script is executed
 if __name__ == '__main__':
     client = MyClient()
-    client.run()
+    client.run()   
