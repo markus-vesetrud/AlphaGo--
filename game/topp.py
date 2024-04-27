@@ -131,7 +131,7 @@ if __name__ == '__main__':
     agents.append(agent)
 
 
-    topp = TOPP(NUM_GAMES, board_size, agents)
+    topp = TOPP(TOPP_NUM_GAMES, board_size, agents)
 
     topp.play_tournament()
     topp.visualize_results()

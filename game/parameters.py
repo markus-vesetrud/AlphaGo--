@@ -8,24 +8,24 @@ OPTIMIZER             = 'adam' # Adagrad, SGD (Stochastic Gradient Descent), RMS
 NUM_NEURONS           = [8, 16, 8] # from i=0, to i=NUM_HIDDEN_LAYERS. I.e., NUM_HIDDEN_LAYERS+1 elements
 
 # MCTS
-NUM_EPISODES = 50
+NUM_EPISODES = 30
 NUM_SEARCH = 10*BOARD_SIZE**2
 EXPLORATION_WEIGHT = 1.0
 EPSILON = 1.0
 EPSILON_DECAY = 0.95
-NUM_GAMES = 15
+NUM_GAMES = 1
 SIMULATE_GAMES = 'single' # single, multi
 
 # TOPP
 NUM_CACHED_ANETS = 5 # (M)
-NUM_GAMES = 10 # (G)
+TOPP_NUM_GAMES = 10 # (G)
 
 # Policy network parameters
 L2_REGULARIZATION = 1e-6 # Set to 0 for no regularization
 BATCH_SIZE = 2048
 NUM_EPOCHS = 20
 LOG_INTERVAL = 5
-SAVE_INTERVAL = 5
+SAVE_INTERVAL = 10
 
 # RL model and replay buffer
 REPLAY_BUFFER_MAX_LENGTH = BATCH_SIZE*5
