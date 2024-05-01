@@ -198,6 +198,9 @@ class ReinforcementLearning():
 
                 current_game_board, current_black_to_play = game.get_state(False)
 
+                if self.visualize_games:
+                    game.display_current_state()
+
                 new_game_states, new_target_values = create_training_cases(self.board_size, current_game_board, current_black_to_play, 
                                                                 mcts.root.action_values, mcts.root.legal_actions)
 
@@ -248,10 +251,10 @@ class ReinforcementLearning():
             elif SIMULATE_GAMES == 'multi':
                 game_states, target_values = self.simulate_games()
 
-            if self.visualize_game:
-                for i in range(game_states.shape[0]):
-                    print(target_values[i,:].reshape((board_size, board_size)))
-                    Hex(board_size, game_states[i,:,:,:2]).display_current_state()
+            # if self.visualize_games:
+            #     for i in range(0, len(game_states), 2):
+            #         print(target_values[i].reshape((self.board_size, self.board_size)))
+            #         Hex(self.board_size, game_states[i][:,:,:2]).display_current_state()
 
             self.update_replay_buffer(game_states, target_values)
 
@@ -385,7 +388,7 @@ if __name__ == '__main__':
     reinforcement_learning = ReinforcementLearning('Test', board_size, exploration_weight, epsilon, epsilon_decay,
                                                 search_iterations, num_games, total_search_count, 
                                                 batch_size, num_epochs, save_interval, loss_fn=criterion, 
-                                                optimizer=optimizer, model=model, verbose=True, visualize_game=VISUALIZE_GAMES, 
+                                                optimizer=optimizer, model=model, verbose=True, visualize_game=VISUALIZE_GAMES_RL, 
                                                 start_epoch=start_epoch, replay_buffer_max_length=replay_buffer_max_length, 
                                                 initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)
 

@@ -49,7 +49,7 @@ class TOPP():
                                 else:
                                     action = agent2.select_action(board, black_to_play, legal_actions)
 
-                                if VISUALIZE_GAMES:
+                                if VISUALIZE_GAMES_TOPP:
                                     game.display_current_state()
                                 game.perform_action(action)
                             

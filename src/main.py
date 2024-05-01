@@ -39,18 +39,18 @@ save_interval = NUM_EPISODES / (NUM_CACHED_ANETS - 1)
 reinforcement_learning = ReinforcementLearning('Demo', BOARD_SIZE, EXPLORATION_WEIGHT, EPSILON, EPSILON_DECAY,
                                             NUM_SEARCH, NUM_GAMES, NUM_EPISODES, 
                                             BATCH_SIZE, NUM_EPOCHS, save_interval, loss_fn=criterion, 
-                                            optimizer=optimizer, model=model, verbose=True, visualize_games=VISUALIZE_GAMES,
+                                            optimizer=optimizer, model=model, verbose=True, visualize_games=VISUALIZE_GAMES_RL,
                                             start_epoch=0, replay_buffer_max_length=REPLAY_BUFFER_MAX_LENGTH, 
                                             initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)
 
-reinforcement_learning.main_loop()
+# reinforcement_learning.main_loop()
 
-checkpoint_paths = reinforcement_learning.model_paths
-# checkpoint_paths = ['checkpoints/Demo:4by4_100iter_0_model.pt', 
-#                      'checkpoints/Demo:4by4_100iter_10_model.pt', 
-#                      'checkpoints/Demo:4by4_100iter_20_model.pt', 
-#                      'checkpoints/Demo:4by4_100iter_30_model.pt', 
-#                      'checkpoints/Demo:4by4_100iter_40_model.pt']
+# checkpoint_paths = reinforcement_learning.model_paths
+checkpoint_paths = ['checkpoints/Demo_4by4_100iter_0_model.pt', 
+                    'checkpoints/Demo_4by4_100iter_10_model.pt', 
+                    'checkpoints/Demo_4by4_100iter_20_model.pt', 
+                    'checkpoints/Demo_4by4_100iter_30_model.pt', 
+                    'checkpoints/Demo_4by4_100iter_40_model.pt']
 checkpoint_paths.append('checkpoints_4by4_long/Demo_4by4_100iter_200_model.pt')
 print(checkpoint_paths)
 agents = []
