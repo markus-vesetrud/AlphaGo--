@@ -6,6 +6,8 @@ from game_interface import GameInterface
 from hex import Hex
 from tqdm import tqdm
 
+from parameters import *
+
 class TOPP():
     """
     A class to represent the Tournament of Progressive Policies (TOPP).
@@ -96,7 +98,7 @@ class TOPP():
 
 
 if __name__ == '__main__':
-    board_size = 7
+    board_size = BOARD_SIZE
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
 
@@ -137,7 +139,7 @@ if __name__ == '__main__':
     # agents.append(agent)
 
 
-    topp = TOPP(200, board_size, agents)
+    topp = TOPP(TOPP_NUM_GAMES, board_size, agents)
 
     topp.play_tournament()
     topp.visualize_results()

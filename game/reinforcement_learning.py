@@ -17,11 +17,12 @@ from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, Linea
 from board_flipping_util import create_training_cases
 from agent import PolicyAgent
 
+from parameters import *
 
 class ReinforcementLearning():
-    def __init__(self, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
+    def __init__(self, models_name: str, board_size: int, exploration_weight: float, epsilon: float, epsilon_decay: float,
                  search_iterations: int, num_games: int, total_search_count: int,
-                 batch_size: int, num_epochs: int, log_interval: int, save_interval: int,
+                 batch_size: int, num_epochs: int, save_interval: int,
                  loss_fn, optimizer, model: nn.Module,
                  verbose: bool, start_epoch: int, replay_buffer_max_length: int, 
                  initial_replay_buffer_state: np.ndarray = None, initial_replay_buffer_target: np.ndarray = None) -> None:
@@ -33,10 +34,11 @@ class ReinforcementLearning():
         self.search_iterations = search_iterations
         self.num_games = num_games
         self.total_search_count = total_search_count
+        self.models_name = models_name
+        self.model_paths = []
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-        self.log_interval = log_interval
         self.save_interval = save_interval
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.loss_fn = loss_fn
@@ -224,9 +226,12 @@ class ReinforcementLearning():
         return (game_states, target_values)
 
     def save(self, search_number):
-        dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
-        model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
-        
+        # dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+        # model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+        dataset_path = f'checkpoints/{self.models_name}:{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+        model_path = f'checkpoints/{self.models_name}:{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+        self.model_paths.append(model_path)
+
         with open(dataset_path, 'wb') as f:
             np.save(f, self.replay_buffer_state)
             np.save(f, self.replay_buffer_target)
@@ -237,7 +242,10 @@ class ReinforcementLearning():
 
             print(f'starting episode number {search_number}')
 
-            game_states, target_values = self.simulate_games()
+            if SIMULATE_GAMES == 'single':
+                game_states, target_values = self.simulate_games_single_process()
+            elif SIMULATE_GAMES == 'multi':
+                game_states, target_values = self.simulate_games()
 
             self.update_replay_buffer(game_states, target_values)
 
@@ -269,10 +277,8 @@ class ReinforcementLearning():
                     loss_history.append(float(loss))
                     self.optimizer.step()
 
-                    if i % self.log_interval == 0:
-                        print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                            epoch, i * self.batch_size, len(data_loader.dataset),
-                            100. * i / len(data_loader), loss.item()))
+                    
+                print(f'Train Epoch: {epoch}\tLoss: {float(loss):.6f}')
             
             self.epsilon *= self.epsilon_decay
 
@@ -297,7 +303,8 @@ class ReinforcementLearning():
             #     action = test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose)
             #     game.display_current_state()
             #     game.perform_action(action)
-            
+        
+        print('#####################')
         self.save(self.total_search_count)
 
 def starter_win_ratio(model: nn.Module, device, board_size: int, epsilon: float, num_games: int = 10000):
@@ -339,27 +346,27 @@ if __name__ == '__main__':
 
     # -------------- Hyperparameters -------------
     # Search parameters
-    board_size = 7
-    exploration_weight = 1.0
-    epsilon = 0.40
-    epsilon_decay = 0.9983
-    search_iterations = 20*board_size**2
-    num_games = 15
+    board_size = BOARD_SIZE
+    exploration_weight = EXPLORATION_WEIGHT
+    epsilon = EPSILON
+    epsilon_decay = EPSILON_DECAY
+    search_iterations = NUM_SEARCH
+    num_games = NUM_GAMES
     replay_buffer_max_length = 2048*5
     # Set to None to start from scratch
-    dataset_path = f'checkpoints_residual/7by7_490iter_145_replay_buffer.npy'
-    model_path   = f'checkpoints_residual/7by7_490iter_145_model.pt'
+    dataset_path = INITIAL_REPLAY_BUFFER
+    model_path   = MODEL_START
 
-    start_epoch = 145
-    total_search_count = 2000
+    start_epoch = 0
+    total_search_count = NUM_EPISODES
 
     # Policy network parameters
-    learning_rate = 1e-3
-    l2_regularization = 5e-6 # Set to 0 for no regularization
-    batch_size = 2048
-    num_epochs = 10
-    log_interval = 10
-    save_interval = 20
+    learning_rate = LEARNING_RATE
+    l2_regularization = L2_REGULARIZATION
+    batch_size = BATCH_SIZE
+    num_epochs = NUM_EPOCHS
+    save_interval = NUM_EPISODES / (NUM_CACHED_ANETS - 1)
+
     # --------------------------------------------
 
 
@@ -373,7 +380,14 @@ if __name__ == '__main__':
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    if OPTIMIZER == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'adagrad':
+        optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
+    elif OPTIMIZER == 'rmsprop':
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate, weight_decay=l2_regularization)
 
 
     if model_path is not None and dataset_path is not None:
@@ -398,7 +412,7 @@ if __name__ == '__main__':
 
     reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, epsilon_decay,
                                                 search_iterations, num_games, total_search_count, 
-                                                batch_size, num_epochs, log_interval, save_interval, loss_fn=criterion, 
+                                                batch_size, num_epochs, save_interval, loss_fn=criterion, 
                                                 optimizer=optimizer, model=model, verbose=True, 
                                                 start_epoch=start_epoch, replay_buffer_max_length=replay_buffer_max_length, 
                                                 initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)
