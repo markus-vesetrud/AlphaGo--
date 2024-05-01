@@ -228,8 +228,8 @@ class ReinforcementLearning():
     def save(self, search_number):
         # dataset_path = f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
         # model_path =   f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
-        dataset_path = f'checkpoints/{self.models_name}:{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
-        model_path = f'checkpoints/{self.models_name}:{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
+        dataset_path = f'checkpoints/{self.models_name}_{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_replay_buffer.npy'
+        model_path = f'checkpoints/{self.models_name}_{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_model.pt'
         self.model_paths.append(model_path)
 
         with open(dataset_path, 'wb') as f:
