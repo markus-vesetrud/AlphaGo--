@@ -5,6 +5,4 @@ game/hex_client_23/*
 #!game/hex_client_23/ActorClient.py
 __MACOSX/
 checkpoints/
-checkpoints_old/
-checkpoints_conv/
 checkpoints_residual_bad/
