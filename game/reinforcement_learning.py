@@ -13,7 +13,7 @@ except RuntimeError:
 from game_interface import GameInterface
 from hex import Hex
 from mcts import MCTreeSearch, MCTreeNode
-from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet, LinearResidualNet
+from game.neural_net import ConvolutionalNeuralNetOld, LinearNeuralNet, LinearResidualNet, LinearResidualNetOld
 from board_flipping_util import create_training_cases
 from agent import PolicyAgent
 
@@ -307,39 +307,6 @@ class ReinforcementLearning():
         print('#####################')
         self.save(self.total_search_count)
 
-def starter_win_ratio(model: nn.Module, device, board_size: int, epsilon: float, num_games: int = 10000):
-    """
-    Plays the model against itself num_games times
-    Returns how often the model won as black
-    A random baseline is around 66%+-0.5% while perfect play is 100%
-
-    This may not be a good way to evaluate our models, a model may get 100% if allowed to do the best move, 
-    but still almost get random results if using the probability distribution it gives, 
-    because a single mistake will lose you the game. And if there is only a 50% chance to pick the correct move 
-    then that is far from enough, and the game will not look very intelligent.
-    """
-    total_starting_wins = 0
-
-    for i in range(num_games):
-        # Create a new game alternating between red and black starts
-        black_start = i%2==0
-        game: GameInterface = Hex(board_size, current_black_player=black_start)
-
-        while not game.is_final_state():
-            board, black_to_play = game.get_state(False)
-            action = PolicyAgent(board_size, model, device, epsilon).select_action(board, black_to_play, game.get_legal_actions())
-            game.perform_action(action)
-        
-        # The final_state_reward is 1 if black won, and 0 if red won
-        # This code adds 1 to the total_starting_wins count if the starting player won
-        if black_start:
-            total_starting_wins += game.get_final_state_reward()
-        else:
-            total_starting_wins += 1-game.get_final_state_reward()
-
-    
-    return total_starting_wins/num_games
-
 
 if __name__ == '__main__':
     torch.multiprocessing.freeze_support()
@@ -352,7 +319,7 @@ if __name__ == '__main__':
     epsilon_decay = EPSILON_DECAY
     search_iterations = NUM_SEARCH
     num_games = NUM_GAMES
-    replay_buffer_max_length = 2048*5
+    replay_buffer_max_length = REPLAY_BUFFER_MAX_LENGTH
     # Set to None to start from scratch
     dataset_path = INITIAL_REPLAY_BUFFER
     model_path   = MODEL_START
@@ -373,10 +340,9 @@ if __name__ == '__main__':
     # ------------- Other Variables --------------
 
     # Model
-    # model = LinearNeuralNet(board_size)
-    # model = ConvolutionalNeuralNet(board_size)
-    # model = DeepConvolutionalNeuralNet(board_size)
-    model = LinearResidualNet(board_size)
+    model = LinearNeuralNet(board_size)
+    # model = ConvolutionalNeuralNetOld(board_size)
+    # model = LinearResidualNetOld(board_size)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
@@ -410,7 +376,7 @@ if __name__ == '__main__':
     # --------------- Main RL loop ---------------
 
 
-    reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, epsilon_decay,
+    reinforcement_learning = ReinforcementLearning('Test', board_size, exploration_weight, epsilon, epsilon_decay,
                                                 search_iterations, num_games, total_search_count, 
                                                 batch_size, num_epochs, save_interval, loss_fn=criterion, 
                                                 optimizer=optimizer, model=model, verbose=True, 

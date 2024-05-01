@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from agent import Agent, RandomAgent, PolicyAgent
-from neural_net import LinearNeuralNet, LinearResidualNet, ConvolutionalNeuralNet
+from game.neural_net import LinearNeuralNet, LinearResidualNet, ConvolutionalNeuralNetOld, LinearResidualNetOld
 from game_interface import GameInterface
 from hex import Hex
 from tqdm import tqdm
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     # agents.append(agent)
 
     # Middle:
-    model = LinearResidualNet(board_size)
+    model = LinearResidualNetOld(board_size)
     model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_145_model.pt', map_location=torch.device(device)))
     model.to(device)
     model.eval()

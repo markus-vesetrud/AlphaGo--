@@ -4,12 +4,12 @@ import numpy as np
 
 from parameters import *
 from reinforcement_learning import ReinforcementLearning
-from parameter_neural_net import LinearResidualNet
+from game.neural_net import LinearNeuralNet
 from agent import PolicyAgent
 from topp import TOPP
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = LinearResidualNet(BOARD_SIZE)
+model = LinearNeuralNet(BOARD_SIZE)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
@@ -46,15 +46,17 @@ reinforcement_learning = ReinforcementLearning('Demo', BOARD_SIZE, EXPLORATION_W
 reinforcement_learning.main_loop()
 
 checkpoint_paths = reinforcement_learning.model_paths
-# checkpoint_paths = ['checkpoints/Demo:4by4_160iter_0_model.pt', 
-#                     'checkpoints/Demo:4by4_160iter_10_model.pt', 
-#                     'checkpoints/Demo:4by4_160iter_20_model.pt', 
-#                     'checkpoints/Demo:4by4_160iter_30_model.pt']
+# checkpoint_paths = ['checkpoints/Demo:4by4_100iter_0_model.pt', 
+#                      'checkpoints/Demo:4by4_100iter_10_model.pt', 
+#                      'checkpoints/Demo:4by4_100iter_20_model.pt', 
+#                      'checkpoints/Demo:4by4_100iter_30_model.pt', 
+#                      'checkpoints/Demo:4by4_100iter_40_model.pt']
+# checkpoint_paths.append('checkpoints/Demo:4by4_100iter_75_model.pt')
+print(checkpoint_paths)
 agents = []
 for model_path in checkpoint_paths:
 
-    print(model_path)
-    model = LinearResidualNet(BOARD_SIZE)
+    model = LinearNeuralNet(BOARD_SIZE)
     model.load_state_dict(torch.load(model_path, map_location=torch.device(device)))
     model.to(device)
     model.eval()

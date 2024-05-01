@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from time import time
 
 from hex import Hex
-from neural_net import ConvolutionalNeuralNet, DeepConvolutionalNeuralNet, LinearNeuralNet, LinearResidualNet
+from game.neural_net import ConvolutionalNeuralNetOld, LinearResidualNet, LinearResidualNetOld, LinearNeuralNet
 from reinforcement_learning import ReinforcementLearning
 from agent import PolicyAgent
 from game_interface import GameInterface
@@ -29,12 +29,12 @@ if __name__ == '__main__':
 
     # -------------- Hyperparameters -------------
     # Search parameters
-    board_size = BOARD_SIZE
+    board_size = 7
     exploration_weight = 1.0 # = EXPLORATION_WEIGHT
     epsilon = 1.0 # = EPSILON
     epsilon_decay = 1.0 # = EPSILON_DECAY
-    search_iterations = 30*board_size**2
-    num_games = 15
+    search_iterations = 1000
+    num_games = 20
     replay_buffer_max_length = 10000
 
     start_epoch = 0
@@ -54,9 +54,10 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Model
-    model = LinearResidualNet(board_size)
+    # model = LinearNeuralNet(board_size)
     # model = ConvolutionalNeuralNet(board_size)
     # model = DeepConvolutionalNeuralNet(board_size)
+    model = LinearResidualNetOld(board_size)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss() # This criterion combines nn.LogSoftmax() and nn.NLLLoss() in one single class.
@@ -72,16 +73,15 @@ if __name__ == '__main__':
         raise ValueError(f'Optimizer not recognized: {OPTIMIZER}')
 
 
-    # reinforcement_learning = ReinforcementLearning(board_size, exploration_weight, epsilon, epsilon_decay,
+    # reinforcement_learning = ReinforcementLearning('Test',board_size, exploration_weight, epsilon, epsilon_decay,
     #                                             search_iterations, num_games, total_search_count, 
     #                                             batch_size, num_epochs, save_interval, loss_fn=criterion, 
     #                                             optimizer=optimizer, model=model, verbose=True, 
     #                                             start_epoch=start_epoch, replay_buffer_max_length=replay_buffer_max_length, 
     #                                             initial_replay_buffer_state=None, initial_replay_buffer_target=None)
 
-    # for i in range(10):
-    #     game_states, target_values = reinforcement_learning.simulate_games()
-    #     save_datset(game_states, target_values, f'test_{i}.npy')
+    # game_states, target_values = reinforcement_learning.simulate_games_single_process()
+    # save_datset(game_states, target_values, 'test.npy')
 
     # total_game_states = np.zeros(shape=(0,7,7,3))
     # total_target_values = np.zeros(shape=(0,7**2))
@@ -96,19 +96,19 @@ if __name__ == '__main__':
     # with open('7by7_1470_iter_150_games.npy', 'wb') as f:
     #     np.save(f, total_game_states)
     #     np.save(f, total_target_values)
-    with open('checkpoints_residual/7by7_490iter_145_replay_buffer.npy', 'rb') as f:
-        game_states: np.ndarray = np.load(f)
-        target_values: np.ndarray = np.load(f)
+    # with open('test.npy', 'rb') as f:
+    #     game_states: np.ndarray = np.load(f)
+    #     target_values: np.ndarray = np.load(f)
     # for i in range(0, game_states.shape[0], 2):
     #     print(target_values[i,:].reshape((board_size, board_size)))
     #     Hex(board_size, game_states[i,:,:,:2]).display_current_state()
     
     
-    print(game_states.shape)
+    # print(game_states.shape)
 
-    model.load_state_dict(torch.load('checkpoints/7by7_980iter_160_model.pt', map_location=torch.device(device)))
-
+    model.load_state_dict(torch.load('holy_grail/7by7_490iter_145_model.pt', map_location=torch.device(device)))
     model.to(device)
+
     # model.train()
     # dataset = TensorDataset(torch.from_numpy(game_states).float(), torch.from_numpy(target_values))
     # random_minibatch_sampler = RandomSampler(dataset, num_samples=batch_size)
@@ -129,10 +129,10 @@ if __name__ == '__main__':
     #         loss_history.append(float(loss))
     #         optimizer.step()
 
-    #         if i % log_interval == 0:
-    #             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-    #                 epoch, i * batch_size, len(data_loader.dataset),
-    #                 100. * i / len(data_loader), loss.item()))
+            
+    #     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+    #         epoch, i * batch_size, len(data_loader.dataset),
+    #         100. * i / len(data_loader), loss.item()))
     
     # plt.plot(list(range(len(loss_history))), loss_history)
     # plt.title('Loss during training')
@@ -141,17 +141,17 @@ if __name__ == '__main__':
     # plt.show()
 
     # torch.save(model.state_dict(), 'test_model.pt')
-    
+
+    model.eval()
                 
-    # game: GameInterface = Hex(board_size, current_black_player=False)
-    # test_agent = PolicyAgent(board_size, model, device, 0.0)
-    # board, black_to_play = game.get_state(False)
-    # print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = True))
+    game: GameInterface = Hex(board_size, current_black_player=False)
+    test_agent = PolicyAgent(board_size, model, device, 0.0)
+    board, black_to_play = game.get_state(False)
+    print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = True))
 
     # Test the agent
     game: GameInterface = Hex(board_size, current_black_player=True)
     test_agent = PolicyAgent(board_size, model, device, 0.0)
-    model.eval()
 
     game_length = 0
     while not game.is_final_state():

@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from neural_net import LinearResidualNet
+from game.neural_net import LinearResidualNetOld
 try:
     from game.game_interface import GameInterface
     from game.hex import Hex
@@ -21,7 +21,7 @@ The `hex_client_23` folder should contain the `ActorClient.py` file, etc.
 
 board_size = 7
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = LinearResidualNet(board_size)
+model = LinearResidualNetOld(board_size)
 model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_145_model.pt', map_location=torch.device(device)))
 model.to(device)
 model.eval()
