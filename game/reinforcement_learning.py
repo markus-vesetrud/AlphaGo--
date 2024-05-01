@@ -13,7 +13,7 @@ except RuntimeError:
 from game_interface import GameInterface
 from hex import Hex
 from mcts import MCTreeSearch, MCTreeNode
-from game.neural_net import ConvolutionalNeuralNetOld, LinearNeuralNet, LinearResidualNet, LinearResidualNetOld
+from neural_net import ConvolutionalNeuralNetOld, LinearNeuralNet, LinearResidualNet, LinearResidualNetOld
 from board_flipping_util import create_training_cases
 from agent import PolicyAgent
 

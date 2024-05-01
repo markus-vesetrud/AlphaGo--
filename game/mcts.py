@@ -1,14 +1,9 @@
 import numpy as np
-try:
-    from game.game_interface import GameInterface
-    from game.hex import Hex
-    from game.nim import Nim
-except ModuleNotFoundError:
-    from game_interface import GameInterface
-    from hex import Hex
-    from nim import Nim
+
+from game_interface import GameInterface
+from hex import Hex
+from nim import Nim
 from copy import deepcopy
-import random
 from agent import Agent, RandomAgent
 
 # Overall view

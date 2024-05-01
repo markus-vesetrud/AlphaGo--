@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from time import time
 
 from hex import Hex
-from game.neural_net import ConvolutionalNeuralNetOld, LinearResidualNet, LinearResidualNetOld, LinearNeuralNet
+from neural_net import ConvolutionalNeuralNetOld, LinearResidualNet, LinearResidualNetOld, LinearNeuralNet
 from reinforcement_learning import ReinforcementLearning
 from agent import PolicyAgent
 from game_interface import GameInterface

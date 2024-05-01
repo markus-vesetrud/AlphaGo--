@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from agent import Agent, RandomAgent, PolicyAgent
-from game.neural_net import LinearNeuralNet, LinearResidualNet, ConvolutionalNeuralNetOld, LinearResidualNetOld
+from neural_net import LinearNeuralNet, LinearResidualNet, ConvolutionalNeuralNetOld, LinearResidualNetOld
 from game_interface import GameInterface
 from hex import Hex
 from tqdm import tqdm

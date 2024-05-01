@@ -1,10 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-try:
-    from game.game_interface import GameInterface
-except ModuleNotFoundError:
-    from game_interface import GameInterface
+from game_interface import GameInterface
 
 
 class Hex(GameInterface):

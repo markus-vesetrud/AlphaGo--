@@ -3,7 +3,7 @@ import numpy as np
 from time import time
 
 from hex import Hex
-from game.neural_net import ConvolutionalNeuralNetOld, LinearResidualNetOld
+from neural_net import ConvolutionalNeuralNetOld, LinearResidualNetOld
 from agent import PolicyAgent
 from game_interface import GameInterface
 

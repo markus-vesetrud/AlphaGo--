@@ -1,10 +1,7 @@
 import random
 import numpy as np
 
-try:
-    from game.game_interface import GameInterface
-except ModuleNotFoundError:
-    from game_interface import GameInterface
+from game_interface import GameInterface
 
 
 class Nim(GameInterface):

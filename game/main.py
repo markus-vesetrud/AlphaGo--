@@ -4,7 +4,7 @@ import numpy as np
 
 from parameters import *
 from reinforcement_learning import ReinforcementLearning
-from game.neural_net import LinearNeuralNet
+from neural_net import LinearNeuralNet
 from agent import PolicyAgent
 from topp import TOPP
 

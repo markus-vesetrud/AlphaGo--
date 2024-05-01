@@ -1,17 +1,11 @@
 import numpy as np
 import torch
 
-from game.neural_net import LinearResidualNetOld
-try:
-    from game.game_interface import GameInterface
-    from game.hex import Hex
-    from game.nim import Nim
-    from hex_client_23.ActorClient import ActorClient
-except ModuleNotFoundError:
-    from game_interface import GameInterface
-    from hex import Hex
-    from agent import Agent, RandomAgent, PolicyAgent
-    from hex_client_23.ActorClient import ActorClient
+from neural_net import LinearResidualNetOld
+from game_interface import GameInterface
+from hex import Hex
+from agent import Agent, RandomAgent, PolicyAgent
+from hex_client_23.ActorClient import ActorClient
 
 """
 This script is used to play online against staff agents.
