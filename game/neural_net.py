@@ -138,11 +138,14 @@ class ConvolutionalNeuralNet(nn.Module):
 
         board = torch.stack((black_channel, red_channel, empty_channel), dim=1)
         
-        return board 
-
+        return board
+    
+    def to(self, device):
+        self.conv_start.to(device)
+        for i in range(self.layers_middle):
+            self.conv_middle[i].to(device)
+        self.conv_end.to(device)
     def forward(self, x):
-
-        
         
         x = self.add_padding(x)
         

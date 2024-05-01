@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from agent import Agent, RandomAgent, PolicyAgent
-from neural_net import LinearNeuralNet, LinearResidualNet
+from neural_net import LinearNeuralNet, LinearResidualNet, ConvolutionalNeuralNet
 from game_interface import GameInterface
 from hex import Hex
 from tqdm import tqdm
@@ -25,58 +25,59 @@ class TOPP():
         The upper triangular part of the matrix is filled with the win percentage
         of the row agent playing as black against the column agent playing as red.
         """
-        i = -1
-        for x in tqdm(range (self.number_of_games*len(self.agents)**2), desc="Playing TOPP..."):
-            j = x % len(self.agents)
-            if j == 0:
-                i += 1
-                i = i % len(self.agents)
+        # i = -1
+        # for x in tqdm(range (self.number_of_games*len(self.agents)**2), desc="Playing TOPP..."):
+        #     j = x % len(self.agents)
+        #     if j == 0:
+        #         i += 1
+        #         i = i % len(self.agents)
 
-            agent1 = self.agents[i]
-            agent2 = self.agents[j]
+        #     agent1 = self.agents[i]
+        #     agent2 = self.agents[j]
 
-            # for _ in range(self.number_of_games):
-            game: GameInterface = Hex(self.board_size)
+        #     # for _ in range(self.number_of_games):
+        #     game: GameInterface = Hex(self.board_size)
 
-            # play the game
-            while not game.is_final_state():
-                board, black_to_play = game.get_state(False)
-                legal_actions = game.get_legal_actions()
+        #     # play the game
+        #     while not game.is_final_state():
+        #         board, black_to_play = game.get_state(False)
+        #         legal_actions = game.get_legal_actions()
 
-                if black_to_play:
-                    action = agent1.select_action(board, black_to_play, legal_actions)
-                else:
-                    action = agent2.select_action(board, black_to_play, legal_actions)
+        #         if black_to_play:
+        #             action = agent1.select_action(board, black_to_play, legal_actions)
+        #         else:
+        #             action = agent2.select_action(board, black_to_play, legal_actions)
 
-                game.perform_action(action)
+        #         game.perform_action(action)
             
-            # update scores
-            self.scores[i, j] += game.get_final_state_reward()
+        #     # update scores
+        #     self.scores[i, j] += game.get_final_state_reward()
                 
+        with tqdm(total=self.number_of_games*len(self.agents)*(len(self.agents)-1), desc='Playing TOPP') as pbar:
+            for i in range(len(self.agents)):
+                for j in range(len(self.agents)):
+                    if i != j:
+                        agent1 = self.agents[i]
+                        agent2 = self.agents[j]
 
-        # for i in tqdm (range(len(self.agents)), desc="Playing TOPP"):
-        #     for j in range(len(self.agents)):
-        #         # if i != j:
-        #         agent1 = self.agents[i]
-        #         agent2 = self.agents[j]
+                        for _ in range(self.number_of_games):
+                            pbar.update(1)
+                            game: GameInterface = Hex(self.board_size)
 
-        #         for _ in range(self.number_of_games):
-        #             game: GameInterface = Hex(self.board_size)
+                            # play the game
+                            while not game.is_final_state():
+                                board, black_to_play = game.get_state(False)
+                                legal_actions = game.get_legal_actions()
 
-        #             # play the game
-        #             while not game.is_final_state():
-        #                 board, black_to_play = game.get_state(False)
-        #                 legal_actions = game.get_legal_actions()
+                                if black_to_play:
+                                    action = agent1.select_action(board, black_to_play, legal_actions)
+                                else:
+                                    action = agent2.select_action(board, black_to_play, legal_actions)
 
-        #                 if black_to_play:
-        #                     action = agent1.select_action(board, black_to_play, legal_actions)
-        #                 else:
-        #                     action = agent2.select_action(board, black_to_play, legal_actions)
-
-        #                 game.perform_action(action)
-                    
-        #             # update scores
-        #             self.scores[i, j] += game.get_final_state_reward()
+                                game.perform_action(action)
+                            
+                            # update scores
+                            self.scores[i, j] += game.get_final_state_reward()
                         
         return self.scores / self.number_of_games
 
@@ -89,8 +90,8 @@ class TOPP():
         for i in range(len(self.agents)):
             print("-------------------------------------------------")
             for j in range(len(self.agents)):
-                # if i != j:
-                print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games)*100:.1f}%")
+                if i != j:
+                    print(f"Agent {i}\t\t| Agent {j}\t| {(self.scores[i, j] / self.number_of_games)*100:.1f}%")
 
 
 
@@ -105,31 +106,38 @@ if __name__ == '__main__':
 
 
     # Worst:
-    model = LinearResidualNet(board_size)
-    model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_50_model.pt', map_location=torch.device(device)))
-    model.to(device)
-    model.eval()
-    agent = PolicyAgent(board_size, model, device, 0.0, random_proportional=True)
-    agents.append(agent)
+    # model = ConvolutionalNeuralNet(board_size)
+    # model.load_state_dict(torch.load('checkpoints/7by7_735iter_30_model.pt', map_location=torch.device(device)))
+    # model.to(device)
+    # model.eval()
+    # agent = PolicyAgent(board_size, model, device, 0.0, random_proportional=True)
+    # agents.append(agent)
 
     # Middle:
-    model = LinearResidualNet(board_size)
-    model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_100_model.pt', map_location=torch.device(device)))
-    model.to(device)
-    model.eval()
-    agent = PolicyAgent(board_size, model, device, 0.0, random_proportional=True)
-    agents.append(agent)
-
-    # Best:
     model = LinearResidualNet(board_size)
     model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_145_model.pt', map_location=torch.device(device)))
     model.to(device)
     model.eval()
-    agent = PolicyAgent(board_size, model, device, 0.0, random_proportional=True)
+    agent = PolicyAgent(board_size, model, device, 0.1, random_proportional=False)
     agents.append(agent)
 
+    model = LinearResidualNet(board_size)
+    model.load_state_dict(torch.load('checkpoints/7by7_980iter_180_model.pt', map_location=torch.device(device)))
+    model.to(device)
+    model.eval()
+    agent = PolicyAgent(board_size, model, device, 0.1, random_proportional=False)
+    agents.append(agent)
 
-    topp = TOPP(10, board_size, agents)
+    # Best:
+    # model = LinearResidualNet(board_size)
+    # model.load_state_dict(torch.load('checkpoints/7by7_980iter_340_model.pt', map_location=torch.device(device)))
+    # model.to(device)
+    # model.eval()
+    # agent = PolicyAgent(board_size, model, device, 0.1, random_proportional=False)
+    # agents.append(agent)
+
+
+    topp = TOPP(200, board_size, agents)
 
     topp.play_tournament()
     topp.visualize_results()

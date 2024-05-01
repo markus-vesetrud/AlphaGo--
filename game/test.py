@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 import numpy as np
 import matplotlib.pyplot as plt
 from time import time
@@ -40,11 +40,10 @@ if __name__ == '__main__':
     total_search_count = 100
 
     # Policy network parameters
-    learning_rate = 4e-3
-
-    l2_regularization = 1e-8 # Set to 0 for no regularization
+    learning_rate = 1e-3
+    l2_regularization = 1e-5 # Set to 0 for no regularization
     batch_size = 2048
-    num_epochs = 200
+    num_epochs = 10
     log_interval = 15
     save_interval = 5
     # --------------------------------------------
@@ -54,8 +53,8 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Model
-    # model = LinearResidualNet(board_size)
-    model = ConvolutionalNeuralNet(board_size)
+    model = LinearResidualNet(board_size)
+    # model = ConvolutionalNeuralNet(board_size)
     # model = DeepConvolutionalNeuralNet(board_size)
 
     # Loss and optimizer
@@ -88,10 +87,9 @@ if __name__ == '__main__':
     # with open('7by7_1470_iter_150_games.npy', 'wb') as f:
     #     np.save(f, total_game_states)
     #     np.save(f, total_target_values)
-    with open('7by7_1470_iter_150_games.npy', 'rb') as f:
+    with open('checkpoints_residual/7by7_490iter_145_replay_buffer.npy', 'rb') as f:
         game_states: np.ndarray = np.load(f)
         target_values: np.ndarray = np.load(f)
-
     # for i in range(0, game_states.shape[0], 2):
     #     print(target_values[i,:].reshape((board_size, board_size)))
     #     Hex(board_size, game_states[i,:,:,:2]).display_current_state()
@@ -99,40 +97,41 @@ if __name__ == '__main__':
     
     print(game_states.shape)
 
-    # model.load_state_dict(torch.load('checkpoints_residual/7by7_490iter_145_model.pt', map_location=torch.device(device)))
+    model.load_state_dict(torch.load('checkpoints/7by7_980iter_160_model.pt', map_location=torch.device(device)))
 
     model.to(device)
-    model.train()
-    dataset = TensorDataset(torch.from_numpy(game_states).float(), torch.from_numpy(target_values))
-    data_loader = DataLoader(dataset, batch_size=batch_size)
-    loss_history = []
+    # model.train()
+    # dataset = TensorDataset(torch.from_numpy(game_states).float(), torch.from_numpy(target_values))
+    # random_minibatch_sampler = RandomSampler(dataset, num_samples=batch_size)
+    # data_loader = DataLoader(dataset, sampler=random_minibatch_sampler, batch_size=batch_size)
+    # loss_history = []
 
-    for epoch in range(1, num_epochs+1):
-        for i, (data, target) in enumerate(data_loader):
-            data = data.permute(0, 3, 1, 2).to(device)
-            target = target.to(device)
+    # for epoch in range(1, num_epochs+1):
+    #     for i, (data, target) in enumerate(data_loader):
+    #         data = data.permute(0, 3, 1, 2).to(device)
+    #         target = target.to(device)
 
-            output = model(data)
-            loss = criterion(output, target)
+    #         output = model(data)
+    #         loss = criterion(output, target)
 
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            loss_history.append(float(loss))
-            optimizer.step()
+    #         # Backward and optimize
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         loss_history.append(float(loss))
+    #         optimizer.step()
 
-            if i % log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, i * batch_size, len(data_loader.dataset),
-                    100. * i / len(data_loader), loss.item()))
+    #         if i % log_interval == 0:
+    #             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+    #                 epoch, i * batch_size, len(data_loader.dataset),
+    #                 100. * i / len(data_loader), loss.item()))
     
-    plt.plot(list(range(len(loss_history))), loss_history)
-    plt.title('Loss during training')
-    plt.xlabel('Batch')
-    plt.ylabel('Loss')
-    plt.show()
+    # plt.plot(list(range(len(loss_history))), loss_history)
+    # plt.title('Loss during training')
+    # plt.xlabel('Batch')
+    # plt.ylabel('Loss')
+    # plt.show()
 
-    torch.save(model.state_dict(), 'test_model.pt')
+    # torch.save(model.state_dict(), 'test_model.pt')
     
                 
     # game: GameInterface = Hex(board_size, current_black_player=False)

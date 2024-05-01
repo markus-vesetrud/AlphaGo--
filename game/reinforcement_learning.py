@@ -244,9 +244,6 @@ class ReinforcementLearning():
             if search_number % self.save_interval == 0:
                 self.save(search_number)
             
-            # ------------------- Convolutional neural network -------------------
-            # this part trains the convolutional neural network on the collected game states and target values
-            # the model is trained to predict the target values from the game states
 
             # Split the data into batches
             dataset = TensorDataset(torch.from_numpy(self.replay_buffer_state).float(), torch.from_numpy(self.replay_buffer_target).float())
@@ -284,11 +281,12 @@ class ReinforcementLearning():
             board, black_to_play = game.get_state(False)
             print(test_agent.select_action(board, black_to_play, game.get_legal_actions(), verbose = self.verbose))
 
-            # plt.plot(list(range(len(loss_history))), loss_history)
-            # plt.title('Loss during training')
-            # plt.xlabel('Batch')
-            # plt.ylabel('Loss')
-            # plt.show()
+            plt.plot(list(range(len(loss_history))), loss_history)
+            plt.title('Loss during training')
+            plt.xlabel('Batch')
+            plt.ylabel('Loss')
+            plt.savefig(f'checkpoints/{self.board_size}by{self.board_size}_{self.search_iterations}iter_{search_number}_loss.png')
+            plt.close()
 
             # Test the agent
             # game: GameInterface = Hex(self.board_size, current_black_player=True)
@@ -344,24 +342,24 @@ if __name__ == '__main__':
     board_size = 7
     exploration_weight = 1.0
     epsilon = 0.40
-    epsilon_decay = 0.994
-    search_iterations = 10*board_size**2
+    epsilon_decay = 0.9983
+    search_iterations = 20*board_size**2
     num_games = 15
     replay_buffer_max_length = 2048*5
     # Set to None to start from scratch
-    dataset_path = f'7by7_1470_iter_150_games.npy'
-    model_path   = f'test_model.pt'
+    dataset_path = f'checkpoints_residual/7by7_490iter_145_replay_buffer.npy'
+    model_path   = f'checkpoints_residual/7by7_490iter_145_model.pt'
 
-    start_epoch = 0
-    total_search_count = 200
+    start_epoch = 145
+    total_search_count = 2000
 
     # Policy network parameters
     learning_rate = 1e-3
-    l2_regularization = 1e-8 # Set to 0 for no regularization
+    l2_regularization = 5e-6 # Set to 0 for no regularization
     batch_size = 2048
-    num_epochs = 150
-    log_interval = 5
-    save_interval = 5
+    num_epochs = 10
+    log_interval = 10
+    save_interval = 20
     # --------------------------------------------
 
 
