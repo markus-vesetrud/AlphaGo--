@@ -51,7 +51,7 @@ checkpoint_paths = reinforcement_learning.model_paths
 #                      'checkpoints/Demo:4by4_100iter_20_model.pt', 
 #                      'checkpoints/Demo:4by4_100iter_30_model.pt', 
 #                      'checkpoints/Demo:4by4_100iter_40_model.pt']
-# checkpoint_paths.append('checkpoints/Demo:4by4_100iter_75_model.pt')
+checkpoint_paths.append('checkpoints_4by4_long/Demo:4by4_100iter_200_model.pt')
 print(checkpoint_paths)
 agents = []
 for model_path in checkpoint_paths:
