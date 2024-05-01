@@ -39,7 +39,7 @@ save_interval = NUM_EPISODES / (NUM_CACHED_ANETS - 1)
 reinforcement_learning = ReinforcementLearning('Demo', BOARD_SIZE, EXPLORATION_WEIGHT, EPSILON, EPSILON_DECAY,
                                             NUM_SEARCH, NUM_GAMES, NUM_EPISODES, 
                                             BATCH_SIZE, NUM_EPOCHS, save_interval, loss_fn=criterion, 
-                                            optimizer=optimizer, model=model, verbose=True, 
+                                            optimizer=optimizer, model=model, verbose=True, visualize_games=VISUALIZE_GAMES,
                                             start_epoch=0, replay_buffer_max_length=REPLAY_BUFFER_MAX_LENGTH, 
                                             initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)
 

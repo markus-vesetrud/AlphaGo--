@@ -31,7 +31,7 @@ REPLAY_BUFFER_MAX_LENGTH = 400
 INITIAL_REPLAY_BUFFER    = None # '4by4_1000_iter_20_games.npy' # path or None
 MODEL_START              = None # path or None
 
-
+VISUALIZE_GAMES = False
 
 # # For training large networks from scratch
 # # BOARD

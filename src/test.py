@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # reinforcement_learning = ReinforcementLearning('Test',board_size, exploration_weight, epsilon, epsilon_decay,
     #                                             search_iterations, num_games, total_search_count, 
     #                                             batch_size, num_epochs, save_interval, loss_fn=criterion, 
-    #                                             optimizer=optimizer, model=model, verbose=True, 
+    #                                             optimizer=optimizer, model=model, verbose=True, visualize_games=False,
     #                                             start_epoch=start_epoch, replay_buffer_max_length=replay_buffer_max_length, 
     #                                             initial_replay_buffer_state=None, initial_replay_buffer_target=None)
 

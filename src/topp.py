@@ -27,33 +27,6 @@ class TOPP():
         The upper triangular part of the matrix is filled with the win percentage
         of the row agent playing as black against the column agent playing as red.
         """
-        # i = -1
-        # for x in tqdm(range (self.number_of_games*len(self.agents)**2), desc="Playing TOPP..."):
-        #     j = x % len(self.agents)
-        #     if j == 0:
-        #         i += 1
-        #         i = i % len(self.agents)
-
-        #     agent1 = self.agents[i]
-        #     agent2 = self.agents[j]
-
-        #     # for _ in range(self.number_of_games):
-        #     game: GameInterface = Hex(self.board_size)
-
-        #     # play the game
-        #     while not game.is_final_state():
-        #         board, black_to_play = game.get_state(False)
-        #         legal_actions = game.get_legal_actions()
-
-        #         if black_to_play:
-        #             action = agent1.select_action(board, black_to_play, legal_actions)
-        #         else:
-        #             action = agent2.select_action(board, black_to_play, legal_actions)
-
-        #         game.perform_action(action)
-            
-        #     # update scores
-        #     self.scores[i, j] += game.get_final_state_reward()
                 
         with tqdm(total=self.number_of_games*len(self.agents)*(len(self.agents)-1), desc='Playing TOPP') as pbar:
             for i in range(len(self.agents)):
@@ -76,6 +49,8 @@ class TOPP():
                                 else:
                                     action = agent2.select_action(board, black_to_play, legal_actions)
 
+                                if VISUALIZE_GAMES:
+                                    game.display_current_state()
                                 game.perform_action(action)
                             
                             # update scores

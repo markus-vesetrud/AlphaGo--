@@ -24,7 +24,7 @@ class ReinforcementLearning():
                  search_iterations: int, num_games: int, total_search_count: int,
                  batch_size: int, num_epochs: int, save_interval: int,
                  loss_fn, optimizer, model: nn.Module,
-                 verbose: bool, start_epoch: int, replay_buffer_max_length: int, 
+                 visualize_games: bool, verbose: bool, start_epoch: int, replay_buffer_max_length: int, 
                  initial_replay_buffer_state: np.ndarray = None, initial_replay_buffer_target: np.ndarray = None) -> None:
         
         self.board_size = board_size
@@ -46,6 +46,7 @@ class ReinforcementLearning():
         self.model = model
         self.model.to(self.device)
         
+        self.visualize_games = visualize_games
         self.verbose = verbose
         self.start_epoch=start_epoch
         self.replay_buffer_max_length = replay_buffer_max_length
@@ -247,6 +248,11 @@ class ReinforcementLearning():
             elif SIMULATE_GAMES == 'multi':
                 game_states, target_values = self.simulate_games()
 
+            if self.visualize_game:
+                for i in range(game_states.shape[0]):
+                    print(target_values[i,:].reshape((board_size, board_size)))
+                    Hex(board_size, game_states[i,:,:,:2]).display_current_state()
+
             self.update_replay_buffer(game_states, target_values)
 
             if search_number % self.save_interval == 0:
@@ -379,7 +385,7 @@ if __name__ == '__main__':
     reinforcement_learning = ReinforcementLearning('Test', board_size, exploration_weight, epsilon, epsilon_decay,
                                                 search_iterations, num_games, total_search_count, 
                                                 batch_size, num_epochs, save_interval, loss_fn=criterion, 
-                                                optimizer=optimizer, model=model, verbose=True, 
+                                                optimizer=optimizer, model=model, verbose=True, visualize_game=VISUALIZE_GAMES, 
                                                 start_epoch=start_epoch, replay_buffer_max_length=replay_buffer_max_length, 
                                                 initial_replay_buffer_state=replay_buffer_state, initial_replay_buffer_target=replay_buffer_target)
 
