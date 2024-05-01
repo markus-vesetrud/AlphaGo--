@@ -32,11 +32,8 @@ Drop out is needed to make the model generelize better, and avoids issues where 
 - [x] Use the network in MCTS
 - [x] Change default policy to be epsilon greedy
 - [x] Deal with the ocilating behaviour by adding a replay buffer
-<!-- - [ ] Check epsilon greedy VS proportional output
-- [ ] Check no board flipping
-- [ ] Check different way of swapping out replay buffer -->
-- [ ] Try new model architecture where the inputs are also fed to the last layer, making it easy for the model to zero out board positions that are allready filled.
-- [ ] Try convolutions with border filled in with the piece corresponding to that row. 
+- [x] Try new model architecture where the inputs are also fed to the last layer, making it easy for the model to zero out board positions that are allready filled.
+- [x] Try convolutions with border filled in with the piece corresponding to that row. 
 
 ## Dependencies
 

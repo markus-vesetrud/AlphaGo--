@@ -1,8 +1,7 @@
 /__pycache__
-/game/__pycache__
 model.pt
-game/hex_client_23/*
-#!game/hex_client_23/ActorClient.py
+src_/__pycache__
+src/hex_client_23/*
 __MACOSX/
 checkpoints/
-checkpoints_old/
+checkpoints_residual_bad/
